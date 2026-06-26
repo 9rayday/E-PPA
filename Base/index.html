@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-PPA 절감 분석기</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #1a1a1a;
+  --bg2:      #212121;
+  --bg3:      #2a2a2a;
+  --bg4:      #333;
+  --border:   #3d3d3d;
+  --border2:  #4a4a4a;
+  --tx1:      #ececec;
+  --tx2:      #b4b4b4;
+  --tx3:      #8a8a8a;
+  --tx4:      #5a5a5a;
+  --orange:   #da7756;
+  --orange-lt:#e8926e;
+  --green:    #5da87a;
+  --r:        10px;
+  --rs:       6px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--tx1); font-size: 13px; }
+
+/* ── Header ── */
+.hdr { height: 54px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; position: sticky; top: 0; z-index: 100; }
+.hdr-brand { display: flex; align-items: center; gap: 10px; }
+.hdr-title { font-size: 15px; font-weight: 600; color: var(--tx1); letter-spacing: -.3px; }
+.tag-beta { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(218,119,86,.15); color: var(--orange); border: 1px solid rgba(218,119,86,.3); letter-spacing: .3px; }
+.hdr-nav { display: flex; align-items: center; gap: 8px; }
+.nav-link { padding: 6px 13px; font-size: 12px; font-weight: 500; color: var(--tx3); background: transparent; border: 1px solid transparent; border-radius: var(--rs); cursor: pointer; font-family: inherit; transition: all .15s; text-decoration: none; }
+.nav-link:hover { color: var(--tx1); border-color: var(--border2); }
+
+/* ── Main layout ── */
+.main { height: calc(100vh - 54px); display: flex; }
+
+/* ── LEFT PANEL ── */
+.left { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 56px; position: relative; overflow: hidden; }
+.left::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(218,119,86,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(218,119,86,.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
+.glow { position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(218,119,86,.1) 0%, transparent 70%); top: 50%; left: 44%; transform: translate(-50%, -50%); pointer-events: none; }
+.left-inner { position: relative; z-index: 1; }
+
+.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--orange); text-transform: uppercase; margin-bottom: 20px; }
+.eyebrow-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
+
+.headline { font-size: 38px; font-weight: 700; line-height: 1.22; letter-spacing: -1px; color: var(--tx1); margin-bottom: 12px; }
+.headline em { font-style: normal; color: var(--orange); }
+
+.subheadline { font-size: 14px; color: var(--tx3); line-height: 1.85; margin-bottom: 44px; font-weight: 400; }
+
+/* ── Solar animation ── */
+.solar-wrap { display: flex; justify-content: flex-start; margin-bottom: 36px; }
+
+@keyframes solar-pulse { 0%,100%{opacity:1;r:28px} 50%{opacity:.72;r:22px} }
+@keyframes ray-spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes ray-fade    { 0%,100%{opacity:.9} 50%{opacity:.15} }
+.sun-core { animation: solar-pulse 3s ease-in-out infinite; transform-origin: 80px 80px; }
+.sun-rays { transform-origin: 80px 80px; animation: ray-spin 10s linear infinite; }
+.ray-1 { animation: ray-fade 2s ease-in-out infinite 0s }
+.ray-2 { animation: ray-fade 2s ease-in-out infinite .25s }
+.ray-3 { animation: ray-fade 2s ease-in-out infinite .5s }
+.ray-4 { animation: ray-fade 2s ease-in-out infinite .75s }
+.ray-5 { animation: ray-fade 2s ease-in-out infinite 1s }
+.ray-6 { animation: ray-fade 2s ease-in-out infinite 1.25s }
+.ray-7 { animation: ray-fade 2s ease-in-out infinite 1.5s }
+.ray-8 { animation: ray-fade 2s ease-in-out infinite 1.75s }
+
+.desc-text { font-size: 13px; color: var(--tx4); line-height: 1.95; max-width: 400px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 28px; }
+.chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; font-size: 11px; font-weight: 500; color: var(--tx3); }
+.chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── RIGHT PANEL ── */
+.right { width: 460px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 48px 40px; border-left: 1px solid var(--border); background: var(--bg2); }
+.right-inner { width: 100%; display: flex; flex-direction: column; gap: 16px; }
+
+.panel-title { font-size: 14px; font-weight: 700; color: var(--tx2); margin-bottom: 4px; }
+.panel-sub { font-size: 11px; color: var(--tx4); line-height: 1.75; }
+
+.upload-box { border: 2px dashed var(--border2); border-radius: var(--r); padding: 44px 24px; text-align: center; background: var(--bg3); cursor: pointer; transition: all .2s; }
+.upload-box:hover { border-color: var(--orange); background: rgba(218,119,86,.05); }
+.upload-icon { color: var(--tx4); margin-bottom: 14px; }
+.upload-label { font-size: 14px; font-weight: 600; color: var(--tx2); margin-bottom: 6px; }
+.upload-hint { font-size: 11px; color: var(--tx4); line-height: 1.8; }
+.upload-ext { display: inline-flex; gap: 6px; margin-top: 14px; }
+.ext-badge { padding: 2px 8px; background: var(--bg4); border: 1px solid var(--border2); border-radius: 4px; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--tx4); }
+
+.or-line { display: flex; align-items: center; gap: 10px; color: var(--tx4); font-size: 11px; }
+.or-line::before, .or-line::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+.btn-template { width: 100%; height: 42px; background: transparent; border: 1px solid var(--border2); border-radius: var(--rs); color: var(--tx3); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .18s; }
+.btn-template:hover { border-color: var(--tx3); color: var(--tx1); }
+
+.btn-cta { width: 100%; height: 52px; background: var(--orange); border: none; border-radius: var(--rs); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background .18s, transform .1s; letter-spacing: -.2px; margin-top: 4px; }
+.btn-cta:hover  { background: var(--orange-lt); }
+.btn-cta:active { transform: scale(.98); }
+
+.cta-note { text-align: center; font-size: 10px; color: var(--tx4); }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <rect width="28" height="28" rx="7" fill="rgba(218,119,86,.1)"/>
+      <path d="M16 4L9 16h7l-4 9 11-14h-7l4-11z" fill="#da7756"/>
+    </svg>
+    <span class="hdr-title">E-PPA</span>
+    <span class="tag-beta">BETA</span>
+  </div>
+  <nav class="hdr-nav">
+    <a class="nav-link" href="#">사용 방법</a>
+    <a class="nav-link" href="#">문의</a>
+  </nav>
+</header>
+
+<!-- Main -->
+<main class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="glow"></div>
+    <div class="left-inner">
+
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        Power Purchase Agreement Analysis
+      </div>
+
+      <h1 class="headline">
+        전기요금 절감,<br>
+        <em>데이터로 증명합니다</em>
+      </h1>
+      <p class="subheadline">
+        전력 사용 데이터를 올리면<br>
+        PPA 도입 시 절감 단가를 즉시 산출합니다
+      </p>
+
+      <!-- Solar Animation -->
+      <div class="solar-wrap">
+        <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
+          <g class="sun-rays">
+            <line class="ray-1" x1="80" y1="10" x2="80" y2="32"   stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-2" x1="118" y1="20" x2="107" y2="39" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-3" x1="145" y1="52" x2="126" y2="63" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-4" x1="150" y1="91" x2="128" y2="86" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-5" x1="118" y1="126" x2="107" y2="107" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-6" x1="80"  y1="142" x2="80"  y2="120" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-7" x1="42"  y1="126" x2="53"  y2="107" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+            <line class="ray-8" x1="15"  y1="80"  x2="37"  y2="80"  stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
+          </g>
+          <circle class="sun-core" cx="80" cy="80" r="28" fill="#da7756"/>
+          <circle cx="80" cy="80" r="17" fill="#e8926e" opacity=".55"/>
+        </svg>
+      </div>
+
+      <p class="desc-text">
+        복잡한 전기요금 체계 속에서 PPA가 실제로 유리한지,<br>
+        얼마나 절감할 수 있는지를 클릭 몇 번으로 확인하세요.
+      </p>
+
+      <div class="chips">
+        <div class="chip"><span class="chip-dot" style="background:var(--orange)"></span>평균 단가 자동 산출</div>
+        <div class="chip"><span class="chip-dot" style="background:var(--green)"></span>월별 절감액 분석</div>
+        <div class="chip"><span class="chip-dot" style="background:#6fa8dc"></span>장기 누적 절감 전망</div>
+        <div class="chip"><span class="chip-dot" style="background:var(--tx3)"></span>Excel 리포트 저장</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="right-inner">
+
+      <div>
+        <div class="panel-title">전력 데이터로 PPA 효과를 분석하세요</div>
+        <div class="panel-sub">월별 전력 사용량과 청구금액이 담긴 엑셀 파일을 업로드하면<br>PPA 도입 시 예상 절감 단가를 바로 산출합니다.</div>
+      </div>
+
+      <div class="upload-box">
+        <div class="upload-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+            <rect x="4" y="8" width="32" height="26" rx="3" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M4 16h32" stroke="currentColor" stroke-width="1.4"/>
+            <path d="M20 22v8M16 25l4-4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="upload-label">전력 데이터를 넣어보세요</div>
+        <div class="upload-hint">드래그 앤 드롭하거나 클릭하여 파일 선택</div>
+        <div class="upload-ext">
+          <span class="ext-badge">.xlsx</span>
+          <span class="ext-badge">.xls</span>
+          <span class="ext-badge">.csv</span>
+        </div>
+      </div>
+
+      <div class="or-line">또는</div>
+
+      <button class="btn-template">
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 1v8M4 6l3 3 3-3"/><path d="M2 10v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2"/>
+        </svg>
+        샘플 양식 다운로드
+      </button>
+
+      <button class="btn-cta">
+        PPA 분석하기
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 8h10M9 4l4 4-4 4"/>
+        </svg>
+      </button>
+
+      <div class="cta-note">파일 없이 샘플 데이터로 먼저 체험할 수 있습니다</div>
+
+    </div>
+  </div>
+
+</main>
+</body>
+</html>
