@@ -510,7 +510,7 @@ function renderChart(){
 function renderDetailMonthly(){
   var el=document.getElementById('dc-monthly');
   var maxK=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
-  var W=800,H=160,pL=44,pR=12,pT=14,pB=20,iW=W-pL-pR,iH=H-pT-pB;
+  var W=800,H=108,pL=44,pR=12,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
   var n=monthly.length,gap=iW/n,bW=Math.max(4,gap*0.68);
   var bars='',labels='',grid='';
 
@@ -531,7 +531,7 @@ function renderDetailMonthly(){
     var op=(0.3+0.55*(m.kwh/maxK)).toFixed(2);
     bars+='<rect x="'+x.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
       '" fill="rgba(180,180,180,'+op+')" rx="2"/>';
-    labels+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(H-4)+'" text-anchor="middle" fill="#5a5a5a" font-size="8.5">'+m.month+'월</text>';
+    labels+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#5a5a5a" font-size="8">'+m.month+'월</text>';
     linePts.push([x+bW/2,by]);
   });
   var line=smoothLine(linePts);
@@ -559,7 +559,7 @@ function renderDetailSeasonal(){
     return {name:SEAS[sk].name,avg:avg,peak:peak};
   });
   var maxV=Math.max.apply(null,groups.map(function(g){return g.peak;}));
-  var W=300,H=150,pL=36,pR=10,pT=12,pB=22,iW=W-pL-pR,iH=H-pT-pB;
+  var W=300,H=108,pL=36,pR=10,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/3,bW=30,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -573,7 +573,7 @@ function renderDetailSeasonal(){
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="rgba(180,180,180,.2)" rx="2"/>';
     var aH=(g.avg/maxV)*iH,ay=pT+iH-aH;
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="rgba(180,180,180,.7)" rx="2"/>';
-    labels+='<text x="'+cx+'" y="'+(H-5)+'" text-anchor="middle" fill="#8a8a8a" font-size="8.5">'+g.name+'</text>';
+    labels+='<text x="'+cx+'" y="'+(H-3)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+g.name+'</text>';
     linePts.push([cx,ay]);
   });
   var line=smoothLine(linePts);
@@ -601,7 +601,7 @@ function renderDetailDow(){
   var stats=DOW.map(function(){return{sum:0,cnt:0,peak:0};});
   daily.forEach(function(d){stats[d.dow].sum+=d.kwh;stats[d.dow].cnt++;stats[d.dow].peak=Math.max(stats[d.dow].peak,d.kwh);});
   var maxV=Math.max.apply(null,stats.map(function(s){return s.peak;}));
-  var W=300,H=150,pL=36,pR=10,pT=12,pB=22,iW=W-pL-pR,iH=H-pT-pB;
+  var W=300,H=108,pL=36,pR=10,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/7,bW=18,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -615,7 +615,7 @@ function renderDetailDow(){
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="rgba(180,180,180,.2)" rx="2"/>';
     var aH=(avg/maxV)*iH,ay=pT+iH-aH;
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="rgba(180,180,180,.7)" rx="2"/>';
-    labels+='<text x="'+cx+'" y="'+(H-5)+'" text-anchor="middle" fill="#8a8a8a" font-size="8.5">'+DOW[i]+'</text>';
+    labels+='<text x="'+cx+'" y="'+(H-3)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+DOW[i]+'</text>';
     linePts.push([cx,ay]);
   });
   var line=smoothLine(linePts);
@@ -629,38 +629,74 @@ function renderDetailDow(){
     +'<div style="font-size:10px;color:var(--tx4);margin-top:4px">진한색=일평균 · 연한색=최대일</div>';
 }
 
-/* ── 기능 2: 히트맵 (AMI only) ── */
+/* ── 기능 2: 시간대별 라인 차트 (계절별) ── */
 function renderDetailHeatmap(){
   var el=document.getElementById('dc-heatmap');
   if(!hrGrid){
-    el.innerHTML='<div class="detail-title">월 × 시간대별 전력사용량</div>'
+    el.innerHTML='<div class="detail-title">시간대별 전력사용량 패턴</div>'
       +'<div class="ami-placeholder">'
-      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg>'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><polyline points="2 17 8 10 13 14 22 6"/></svg>'
       +'AMI (15분 간격) 데이터 업로드 시 표시됩니다</div>';
     return;
   }
-  var vals=[];
-  for(var m=1;m<=12;m++) for(var h=0;h<12;h++) vals.push(hrGrid[m+'-'+h]||0);
-  var maxV=Math.max.apply(null,vals)||1;
-  var HR=['0-2','2-4','4-6','6-8','8-10','10-12','12-14','14-16','16-18','18-20','20-22','22-24'];
-  var ML=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
-  var cW=40,cH=20,ml=36,mt=24,gp=2;
-  var W=ml+12*(cW+gp)+8,H=mt+12*(cH+gp)+6;
-  var cells='',xLbl='',yLbl='';
-  HR.forEach(function(l,h){
-    xLbl+='<text x="'+(ml+h*(cW+gp)+cW/2)+'" y="16" text-anchor="middle" fill="#5a5a5a" font-size="8">'+l+'</text>';
+
+  var SEAS={
+    summer:     {name:'여름',  months:[6,7,8],       col:'rgba(218,119,86,.85)'},
+    spring_fall:{name:'봄·가을',months:[3,4,5,9,10], col:'rgba(93,168,122,.85)'},
+    winter:     {name:'겨울', months:[11,12,1,2],    col:'rgba(111,168,220,.85)'}
+  };
+  var HR=['0시','2시','4시','6시','8시','10시','12시','14시','16시','18시','20시','22시'];
+
+  /* 계절별 시간대 평균 */
+  var seasonLines={};
+  Object.keys(SEAS).forEach(function(sk){
+    seasonLines[sk]=[];
+    for(var h=0;h<12;h++){
+      var sum=0,cnt=0;
+      SEAS[sk].months.forEach(function(m){var v=hrGrid[m+'-'+h]||0;if(v){sum+=v;cnt++;}});
+      seasonLines[sk].push(cnt?sum/cnt:0);
+    }
   });
-  ML.forEach(function(l,m){
-    yLbl+='<text x="'+(ml-4)+'" y="'+(mt+m*(cH+gp)+cH/2+3)+'" text-anchor="end" fill="#5a5a5a" font-size="8">'+l+'</text>';
+
+  var allVals=[];
+  Object.keys(seasonLines).forEach(function(sk){seasonLines[sk].forEach(function(v){allVals.push(v);});});
+  var maxV=Math.max.apply(null,allVals)||1;
+
+  var W=680,H=120,pL=38,pR=12,pT=12,pB=20,iW=W-pL-pR,iH=H-pT-pB;
+  function px(i){return pL+(i/11)*iW;}
+  function py(v){return pT+iH-(v/maxV)*iH;}
+
+  /* 업무시간대 배경 밴드 (8시~18시 = 블록4~8) */
+  var band='<rect x="'+px(4).toFixed(1)+'" y="'+pT+'" width="'+(px(8)-px(4)).toFixed(1)+'" height="'+iH+'" fill="rgba(255,255,255,.025)" rx="2"/>';
+
+  var grid='',labels='',lines='';
+  [0,.5,1].forEach(function(y){
+    var yp=(pT+iH*(1-y)).toFixed(1);
+    grid+='<text x="'+(pL-4)+'" y="'+(parseFloat(yp)+3)+'" text-anchor="end" fill="#5a5a5a" font-size="8">'+(Math.round(maxV*y/1000))+'k</text>';
+    if(y>0) grid+='<line x1="'+pL+'" y1="'+yp+'" x2="'+(W-pR)+'" y2="'+yp+'" stroke="#2e2e2e" stroke-width=".5"/>';
   });
-  for(var m=1;m<=12;m++) for(var h=0;h<12;h++){
-    var v=(hrGrid[m+'-'+h]||0)/maxV;
-    var r=Math.round(42+v*(218-42)),g2=Math.round(42+v*(119-42)),b=Math.round(42+v*(86-42));
-    cells+='<rect x="'+(ml+h*(cW+gp))+'" y="'+(mt+(m-1)*(cH+gp))+'" width="'+cW+'" height="'+cH+'" fill="rgb('+r+','+g2+','+b+')" rx="2"/>';
-  }
-  el.innerHTML='<div class="detail-title">월 × 시간대별 평균 전력사용량</div>'
-    +'<div style="overflow-x:auto"><svg viewBox="0 0 '+W+' '+H+'" style="min-width:540px;width:100%;height:auto">'+xLbl+yLbl+cells+'</svg></div>'
-    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">어두울수록 낮음 · 주황색에 가까울수록 높음</div>';
+  HR.forEach(function(l,i){
+    labels+='<text x="'+px(i).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#5a5a5a" font-size="8">'+l+'</text>';
+  });
+
+  Object.keys(SEAS).forEach(function(sk){
+    var pts=seasonLines[sk].map(function(v,i){return[px(i),py(v)];});
+    var line=smoothLine(pts);
+    lines+='<path d="'+line+'" fill="none" stroke="'+SEAS[sk].col+'" stroke-width="1.6"/>';
+    pts.forEach(function(p){
+      lines+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2" fill="'+SEAS[sk].col+'"/>';
+    });
+  });
+
+  el.innerHTML='<div class="detail-title">시간대별 전력사용량 패턴 (계절별)</div>'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
+    +band+grid+lines+labels+'</g></svg>'
+    +'<div style="display:flex;gap:14px;margin-top:4px;font-size:10px;color:var(--tx4)">'
+    +'<span><i style="display:inline-block;width:16px;height:2px;background:rgba(218,119,86,.85);vertical-align:middle;margin-right:4px"></i>여름</span>'
+    +'<span><i style="display:inline-block;width:16px;height:2px;background:rgba(93,168,122,.85);vertical-align:middle;margin-right:4px"></i>봄·가을</span>'
+    +'<span><i style="display:inline-block;width:16px;height:2px;background:rgba(111,168,220,.85);vertical-align:middle;margin-right:4px"></i>겨울</span>'
+    +'<span style="margin-left:4px;color:var(--tx4)">│ 밝은 구간 = 업무시간대</span>'
+    +'</div>';
 }
 
 /* ── 기능 3: 요금 비교 테이블 ── */
