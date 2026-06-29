@@ -5,187 +5,157 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>E-PPA 절감 분석기</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
-  --bg:       #1a1a1a;
-  --bg2:      #212121;
-  --bg3:      #2a2a2a;
-  --bg4:      #333;
-  --border:   #3d3d3d;
-  --border2:  #4a4a4a;
-  --tx1:      #ececec;
-  --tx2:      #b4b4b4;
-  --tx3:      #8a8a8a;
-  --tx4:      #5a5a5a;
-  --orange:   #da7756;
-  --orange-lt:#e8926e;
-  --green:    #5da87a;
-  --r:        10px;
-  --rs:       6px;
+  --bg:#1a1a1a; --bg2:#212121; --bg3:#2a2a2a; --bg4:#333;
+  --border:#3d3d3d; --border2:#4a4a4a;
+  --tx1:#ececec; --tx2:#b4b4b4; --tx3:#8a8a8a; --tx4:#5a5a5a;
+  --orange:#da7756; --orange-lt:#e8926e; --green:#5da87a;
+  --r:10px; --rs:6px;
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; font-family: 'Noto Sans KR', sans-serif; background: var(--bg); color: var(--tx1); font-size: 13px; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--tx1);font-size:13px}
 
-/* ── Header ── */
-.hdr { height: 54px; background: var(--bg2); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 32px; position: sticky; top: 0; z-index: 100; }
-.hdr-brand { display: flex; align-items: center; gap: 10px; }
-.hdr-title { font-size: 15px; font-weight: 600; color: var(--tx1); letter-spacing: -.3px; }
-.tag-beta { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: rgba(218,119,86,.15); color: var(--orange); border: 1px solid rgba(218,119,86,.3); letter-spacing: .3px; }
-.hdr-nav { display: flex; align-items: center; gap: 8px; }
-.nav-link { padding: 6px 13px; font-size: 12px; font-weight: 500; color: var(--tx3); background: transparent; border: 1px solid transparent; border-radius: var(--rs); cursor: pointer; font-family: inherit; transition: all .15s; text-decoration: none; }
-.nav-link:hover { color: var(--tx1); border-color: var(--border2); }
+/* Header */
+.hdr{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 32px;position:sticky;top:0;z-index:100}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-title{font-size:15px;font-weight:600;color:var(--tx1);letter-spacing:-.3px}
+.hdr-solar{flex-shrink:0;width:34px;height:34px}
+@keyframes hdr-spin{to{transform:rotate(360deg)}}
+@keyframes hdr-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hdr-rays{transform-origin:17px 17px;animation:hdr-spin 10s linear infinite}
+.hdr-core{transform-origin:17px 17px;animation:hdr-pulse 3s ease-in-out infinite}
 
-/* ── Main layout ── */
-.main { height: calc(100vh - 54px); display: flex; }
+/* Layout */
+.main{height:calc(100vh - 54px);display:flex}
 
-/* ── LEFT PANEL ── */
-.left { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 60px 56px; position: relative; overflow: hidden; }
-.left::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(rgba(218,119,86,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(218,119,86,.04) 1px, transparent 1px); background-size: 40px 40px; pointer-events: none; }
-.glow { position: absolute; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle, rgba(218,119,86,.1) 0%, transparent 70%); top: 50%; left: 44%; transform: translate(-50%, -50%); pointer-events: none; }
-.left-inner { position: relative; z-index: 1; }
+/* Left */
+.left{flex:1;background:#252525;display:flex;flex-direction:column;justify-content:center;padding:56px 56px}
+.left-content{position:relative}
+.headline{font-size:40px;font-weight:700;line-height:1.22;letter-spacing:-1.2px;color:var(--tx1);margin-bottom:18px}
+.headline em{font-style:normal;color:var(--orange)}
+.subheadline{font-size:14px;color:var(--tx3);line-height:1.9;max-width:340px}
 
-.eyebrow { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: .8px; color: var(--orange); text-transform: uppercase; margin-bottom: 20px; }
-.eyebrow-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--orange); }
+/* Scene — 텍스트 아래, 우측 업로드박스와 동일 사이즈로 제한 */
+.scene{
+  margin-top:28px;position:relative;
+  width:100%;max-width:380px;height:200px;
+  border-radius:12px;overflow:hidden;
+  background:#2c2c2c;
+}
 
-.headline { font-size: 38px; font-weight: 700; line-height: 1.22; letter-spacing: -1px; color: var(--tx1); margin-bottom: 12px; }
-.headline em { font-style: normal; color: var(--orange); }
+.sun{
+  position:absolute;width:26px;height:26px;border-radius:50%;
+  background:radial-gradient(circle at 50% 50%,#fff8d6 0%,#ffe566 35%,#ffb030 66%,transparent 82%);
+  box-shadow:0 0 8px 4px rgba(255,185,60,.55),0 0 20px 10px rgba(255,140,0,.24);
+  transform:translateX(-50%);
+  animation:sun-arc 14s ease-in-out infinite;
+}
+@keyframes sun-arc{
+  0%   {left:5%;  bottom:16px; opacity:.5}
+  50%  {left:50%; bottom:148px;opacity:1}
+  100% {left:95%; bottom:16px; opacity:.35}
+}
 
-.subheadline { font-size: 14px; color: var(--tx3); line-height: 1.85; margin-bottom: 44px; font-weight: 400; }
+/* Right */
+.right{width:460px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:48px 40px;border-left:1px solid var(--border);background:var(--bg2);overflow-y:auto}
+.right-inner{width:100%;display:flex;flex-direction:column;gap:14px}
 
-/* ── Solar animation ── */
-.solar-wrap { display: flex; justify-content: flex-start; margin-bottom: 36px; }
+/* Upload */
+.upload-box{border:2px dashed var(--border2);border-radius:var(--r);padding:44px 24px;text-align:center;background:var(--bg3);cursor:pointer;transition:all .2s;user-select:none}
+.upload-box:hover,.upload-box.drag-over{border-color:var(--orange);background:rgba(218,119,86,.05)}
+.upload-box.has-file{border-color:var(--green);background:rgba(93,168,122,.06);border-style:solid}
+.upload-icon{color:var(--tx4);margin-bottom:14px}
+.upload-label{font-size:14px;font-weight:600;color:var(--tx2);margin-bottom:6px;word-break:break-all}
+.upload-hint{font-size:11px;color:var(--tx4);line-height:1.8}
+.upload-ext{display:inline-flex;gap:6px;margin-top:14px}
+.ext-badge{padding:2px 8px;background:var(--bg4);border:1px solid var(--border2);border-radius:4px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx4)}
 
-@keyframes solar-pulse { 0%,100%{opacity:1;r:28px} 50%{opacity:.72;r:22px} }
-@keyframes ray-spin    { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-@keyframes ray-fade    { 0%,100%{opacity:.9} 50%{opacity:.15} }
-.sun-core { animation: solar-pulse 3s ease-in-out infinite; transform-origin: 80px 80px; }
-.sun-rays { transform-origin: 80px 80px; animation: ray-spin 10s linear infinite; }
-.ray-1 { animation: ray-fade 2s ease-in-out infinite 0s }
-.ray-2 { animation: ray-fade 2s ease-in-out infinite .25s }
-.ray-3 { animation: ray-fade 2s ease-in-out infinite .5s }
-.ray-4 { animation: ray-fade 2s ease-in-out infinite .75s }
-.ray-5 { animation: ray-fade 2s ease-in-out infinite 1s }
-.ray-6 { animation: ray-fade 2s ease-in-out infinite 1.25s }
-.ray-7 { animation: ray-fade 2s ease-in-out infinite 1.5s }
-.ray-8 { animation: ray-fade 2s ease-in-out infinite 1.75s }
+/* Config */
+#cfg{flex-direction:column;gap:10px}
+.cfg-sep{height:1px;background:var(--border);margin:2px 0}
+.cfg-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.7px}
+.inp-row{display:flex;flex-direction:column;gap:4px}
+.inp-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.inp-label{font-size:11px;color:var(--tx3);display:flex;justify-content:space-between;align-items:center}
+.inp-auto{font-size:10px;color:var(--green);font-weight:500}
+.inp-field{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx1);font-size:13px;padding:7px 10px;outline:none;font-family:'JetBrains Mono',monospace;width:100%;transition:border-color .15s}
+.inp-field:focus{border-color:var(--orange)}
+.inp-field::placeholder{color:var(--tx4)}
 
-.desc-text { font-size: 13px; color: var(--tx4); line-height: 1.95; max-width: 400px; }
+.btn-loc{height:34px;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx3);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;width:100%}
+.btn-loc:hover{border-color:var(--tx3);color:var(--tx1)}
 
-.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 28px; }
-.chip { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; font-size: 11px; font-weight: 500; color: var(--tx3); }
-.chip-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+/* CTA */
+.btn-cta{width:100%;height:52px;background:var(--orange);border:none;border-radius:var(--rs);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;transition:background .18s,transform .1s;letter-spacing:-.2px}
+.btn-cta:hover{background:var(--orange-lt)}
+.btn-cta:active{transform:scale(.98)}
+.btn-cta:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
 
-/* ── RIGHT PANEL ── */
-.right { width: 460px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 48px 40px; border-left: 1px solid var(--border); background: var(--bg2); }
-.right-inner { width: 100%; display: flex; flex-direction: column; gap: 16px; }
+.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-.panel-title { font-size: 14px; font-weight: 700; color: var(--tx2); margin-bottom: 4px; }
-.panel-sub { font-size: 11px; color: var(--tx4); line-height: 1.75; }
-
-.upload-box { border: 2px dashed var(--border2); border-radius: var(--r); padding: 44px 24px; text-align: center; background: var(--bg3); cursor: pointer; transition: all .2s; }
-.upload-box:hover { border-color: var(--orange); background: rgba(218,119,86,.05); }
-.upload-icon { color: var(--tx4); margin-bottom: 14px; }
-.upload-label { font-size: 14px; font-weight: 600; color: var(--tx2); margin-bottom: 6px; }
-.upload-hint { font-size: 11px; color: var(--tx4); line-height: 1.8; }
-.upload-ext { display: inline-flex; gap: 6px; margin-top: 14px; }
-.ext-badge { padding: 2px 8px; background: var(--bg4); border: 1px solid var(--border2); border-radius: 4px; font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--tx4); }
-
-.or-line { display: flex; align-items: center; gap: 10px; color: var(--tx4); font-size: 11px; }
-.or-line::before, .or-line::after { content: ''; flex: 1; height: 1px; background: var(--border); }
-
-.btn-template { width: 100%; height: 42px; background: transparent; border: 1px solid var(--border2); border-radius: var(--rs); color: var(--tx3); font-size: 12px; font-weight: 500; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 7px; transition: all .18s; }
-.btn-template:hover { border-color: var(--tx3); color: var(--tx1); }
-
-.btn-cta { width: 100%; height: 52px; background: var(--orange); border: none; border-radius: var(--rs); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background .18s, transform .1s; letter-spacing: -.2px; margin-top: 4px; }
-.btn-cta:hover  { background: var(--orange-lt); }
-.btn-cta:active { transform: scale(.98); }
-
-.cta-note { text-align: center; font-size: 10px; color: var(--tx4); }
+/* Responsive */
+@media(max-width:900px){
+  .main{flex-direction:column;height:auto;min-height:calc(100vh - 54px)}
+  .left{padding:40px 28px 36px}
+  .headline{font-size:28px}
+  .scene{height:160px;max-width:100%}
+  .right{width:100%;padding:32px 24px 40px;border-left:none;border-top:1px solid var(--border);align-items:flex-start}
+}
+@media(max-width:480px){
+  .hdr{padding:0 20px}
+  .left{padding:32px 20px 28px}
+  .right{padding:28px 20px 36px}
+  .headline{font-size:24px}
+  .inp-row-2{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 
-<!-- Header -->
 <header class="hdr">
   <div class="hdr-brand">
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-      <rect width="28" height="28" rx="7" fill="rgba(218,119,86,.1)"/>
-      <path d="M16 4L9 16h7l-4 9 11-14h-7l4-11z" fill="#da7756"/>
+    <svg class="hdr-solar" viewBox="0 0 34 34" fill="none">
+      <g class="hdr-rays">
+        <line x1="17" y1="1.5"  x2="17" y2="7.5"   stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="17" y1="26.5" x2="17" y2="32.5"  stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="1.5"  y1="17" x2="7.5"  y2="17"  stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="26.5" y1="17" x2="32.5" y2="17"  stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="5.7"  y1="5.7"  x2="9.9"  y2="9.9"   stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="24.1" y1="24.1" x2="28.3" y2="28.3"  stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="28.3" y1="5.7"  x2="24.1" y2="9.9"   stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="9.9"  y1="24.1" x2="5.7"  y2="28.3"  stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+      </g>
+      <circle class="hdr-core" cx="17" cy="17" r="6.5" fill="#da7756"/>
+      <circle cx="17" cy="17" r="4" fill="#e8926e" opacity=".55"/>
     </svg>
     <span class="hdr-title">E-PPA</span>
-    <span class="tag-beta">BETA</span>
   </div>
-  <nav class="hdr-nav">
-    <a class="nav-link" href="#">사용 방법</a>
-    <a class="nav-link" href="#">문의</a>
-  </nav>
 </header>
 
-<!-- Main -->
 <main class="main">
 
-  <!-- LEFT -->
   <div class="left">
-    <div class="glow"></div>
-    <div class="left-inner">
-
-      <div class="eyebrow">
-        <span class="eyebrow-dot"></span>
-        Power Purchase Agreement Analysis
-      </div>
-
-      <h1 class="headline">
-        전기요금 절감,<br>
-        <em>데이터로 증명합니다</em>
-      </h1>
-      <p class="subheadline">
-        전력 사용 데이터를 올리면<br>
-        PPA 도입 시 절감 단가를 즉시 산출합니다
-      </p>
-
-      <!-- Solar Animation -->
-      <div class="solar-wrap">
-        <svg width="160" height="160" viewBox="0 0 160 160" fill="none">
-          <g class="sun-rays">
-            <line class="ray-1" x1="80" y1="10" x2="80" y2="32"   stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-2" x1="118" y1="20" x2="107" y2="39" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-3" x1="145" y1="52" x2="126" y2="63" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-4" x1="150" y1="91" x2="128" y2="86" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-5" x1="118" y1="126" x2="107" y2="107" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-6" x1="80"  y1="142" x2="80"  y2="120" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-7" x1="42"  y1="126" x2="53"  y2="107" stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-            <line class="ray-8" x1="15"  y1="80"  x2="37"  y2="80"  stroke="#da7756" stroke-width="4" stroke-linecap="round"/>
-          </g>
-          <circle class="sun-core" cx="80" cy="80" r="28" fill="#da7756"/>
-          <circle cx="80" cy="80" r="17" fill="#e8926e" opacity=".55"/>
-        </svg>
-      </div>
-
-      <p class="desc-text">
-        복잡한 전기요금 체계 속에서 PPA가 실제로 유리한지,<br>
-        얼마나 절감할 수 있는지를 클릭 몇 번으로 확인하세요.
-      </p>
-
-      <div class="chips">
-        <div class="chip"><span class="chip-dot" style="background:var(--orange)"></span>평균 단가 자동 산출</div>
-        <div class="chip"><span class="chip-dot" style="background:var(--green)"></span>월별 절감액 분석</div>
-        <div class="chip"><span class="chip-dot" style="background:#6fa8dc"></span>장기 누적 절감 전망</div>
-        <div class="chip"><span class="chip-dot" style="background:var(--tx3)"></span>Excel 리포트 저장</div>
-      </div>
-
+    <div class="left-content">
+      <h1 class="headline">전기요금 절감,<br><em>데이터로 증명합니다</em></h1>
+      <p class="subheadline">전력 사용 데이터를 올리면<br>PPA 도입 시 절감 단가를 즉시 산출합니다</p>
+    </div>
+    <div class="scene">
+      <div class="sun"></div>
+      <!-- 반달형 산 능선 하나, 회색에 가까운 초록 -->
+      <svg style="position:absolute;bottom:0;left:0;width:100%;height:72%" viewBox="0 0 380 145" preserveAspectRatio="none">
+        <path d="M0,145 C50,20 105,20 150,65 C175,88 205,88 235,65 C275,15 330,15 380,145 Z" fill="rgba(92,112,96,0.54)"/>
+      </svg>
     </div>
   </div>
 
-  <!-- RIGHT -->
   <div class="right">
     <div class="right-inner">
 
-      <div>
-        <div class="panel-title">전력 데이터로 PPA 효과를 분석하세요</div>
-        <div class="panel-sub">월별 전력 사용량과 청구금액이 담긴 엑셀 파일을 업로드하면<br>PPA 도입 시 예상 절감 단가를 바로 산출합니다.</div>
-      </div>
-
-      <div class="upload-box">
+      <div class="upload-box" id="upload-box">
+        <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display:none">
         <div class="upload-icon">
           <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
             <rect x="4" y="8" width="32" height="26" rx="3" stroke="currentColor" stroke-width="1.4"/>
@@ -193,8 +163,8 @@ html, body { height: 100%; font-family: 'Noto Sans KR', sans-serif; background: 
             <path d="M20 22v8M16 25l4-4 4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
         </div>
-        <div class="upload-label">전력 데이터를 넣어보세요</div>
-        <div class="upload-hint">드래그 앤 드롭하거나 클릭하여 파일 선택</div>
+        <div class="upload-label" id="upload-label">전력 데이터를 넣어보세요</div>
+        <div class="upload-hint"  id="upload-hint">드래그 앤 드롭하거나 클릭하여 파일 선택</div>
         <div class="upload-ext">
           <span class="ext-badge">.xlsx</span>
           <span class="ext-badge">.xls</span>
@@ -202,27 +172,59 @@ html, body { height: 100%; font-family: 'Noto Sans KR', sans-serif; background: 
         </div>
       </div>
 
-      <div class="or-line">또는</div>
+      <div id="cfg" style="display:none">
+        <div class="cfg-sep"></div>
+        <div class="cfg-title">분석 설정</div>
 
-      <button class="btn-template">
-        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M7 1v8M4 6l3 3 3-3"/><path d="M2 10v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2"/>
-        </svg>
-        샘플 양식 다운로드
-      </button>
+        <div class="inp-row-2">
+          <div class="inp-row">
+            <div class="inp-label">위도<span class="inp-auto" id="loc-auto" style="display:none">자동</span></div>
+            <input class="inp-field" id="inp-lat" type="number" value="37.5665" step="0.0001">
+          </div>
+          <div class="inp-row">
+            <div class="inp-label">경도</div>
+            <input class="inp-field" id="inp-lng" type="number" value="126.9780" step="0.0001">
+          </div>
+        </div>
 
-      <button class="btn-cta">
-        PPA 분석하기
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn-loc" id="btn-location">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
+          </svg>
+          현재 위치 사용
+        </button>
+
+        <div class="inp-row">
+          <div class="inp-label">태양광 설치 용량<span style="font-size:10px;color:var(--tx4)">kWp</span></div>
+          <input class="inp-field" id="inp-capacity" type="number" placeholder="예: 100" min="1" step="0.1">
+        </div>
+
+        <div class="inp-row-2">
+          <div class="inp-row">
+            <div class="inp-label">PPA 단가<span style="font-size:10px;color:var(--tx4)">원/kWh</span></div>
+            <input class="inp-field" id="inp-ppa" type="number" placeholder="예: 100" min="50">
+          </div>
+          <div class="inp-row">
+            <div class="inp-label">현재 평균단가<span class="inp-auto" id="tariff-auto"></span></div>
+            <input class="inp-field" id="inp-tariff" type="number" placeholder="자동 산출">
+          </div>
+        </div>
+
+        <div class="cfg-sep"></div>
+      </div>
+
+      <button class="btn-cta" id="btn-cta">
+        <span id="btn-label">PPA 분석하기</span>
+        <span id="btn-spinner" style="display:none"><span class="spinner"></span></span>
+        <svg id="btn-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 8h10M9 4l4 4-4 4"/>
         </svg>
       </button>
-
-      <div class="cta-note">파일 없이 샘플 데이터로 먼저 체험할 수 있습니다</div>
 
     </div>
   </div>
 
 </main>
+<script src="app.js"></script>
 </body>
 </html>

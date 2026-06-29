@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E-PPA 분석 결과</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1a1a;--bg2:#212121;--bg3:#2a2a2a;--bg4:#333;
+  --border:#3d3d3d;--border2:#4a4a4a;
+  --tx1:#ececec;--tx2:#b4b4b4;--tx3:#8a8a8a;--tx4:#5a5a5a;
+  --orange:#da7756;--orange-lt:#e8926e;--green:#5da87a;--blue:#6fa8dc;
+  --r:10px;--rs:6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--tx1);font-size:13px}
+
+/* Header */
+.hdr{height:54px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 32px;gap:16px;position:sticky;top:0;z-index:100}
+.hdr-brand{display:flex;align-items:center;gap:10px}
+.hdr-title{font-size:15px;font-weight:600;letter-spacing:-.3px}
+.hdr-solar{flex-shrink:0;width:34px;height:34px}
+@keyframes hdr-spin{to{transform:rotate(360deg)}}
+@keyframes hdr-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.hdr-rays{transform-origin:17px 17px;animation:hdr-spin 10s linear infinite}
+.hdr-core{transform-origin:17px 17px;animation:hdr-pulse 3s ease-in-out infinite}
+.hdr-sep{width:1px;height:20px;background:var(--border)}
+.hdr-page{font-size:12px;color:var(--tx3)}
+.btn-back{margin-left:auto;height:32px;padding:0 14px;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx3);font-size:11px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;transition:all .15s}
+.btn-back:hover{color:var(--tx1);border-color:var(--tx3)}
+
+/* Layout */
+.page{display:flex;height:calc(100vh - 54px);overflow:hidden}
+
+/* Left */
+.analysis{flex:2;overflow-y:auto;display:flex;flex-direction:column;min-width:0}
+
+/* fn tab bar */
+.fn-bar{display:flex;border-bottom:1px solid var(--border);background:var(--bg2);flex-shrink:0;padding:0 24px}
+.fn-btn{padding:14px 22px;border:none;background:transparent;color:var(--tx4);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;transition:all .15s;letter-spacing:.2px}
+.fn-btn:hover{color:var(--tx2)}
+.fn-btn.active{color:var(--orange);border-bottom-color:var(--orange)}
+
+/* Section */
+.fn-section{padding:22px 26px;display:flex;flex-direction:column;gap:16px}
+
+/* Cards */
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.metric-label{font-size:10px;color:var(--tx4);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.metric-value{font-size:22px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace;letter-spacing:-.5px}
+.metric-unit{font-size:11px;color:var(--tx3);margin-left:3px}
+.metric-sub{font-size:10px;color:var(--tx4);margin-top:5px;line-height:1.5}
+
+/* Chart */
+.chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 14px}
+.chart-title{font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px}
+.chart-legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx3)}
+.legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+
+/* Detail grid (fn2) */
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.detail-card.wide{grid-column:1/-1}
+.detail-title{font-size:10px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.ami-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;gap:10px;color:var(--tx4);font-size:11px;text-align:center;line-height:1.7}
+
+/* Fee table (fn3) */
+.fee-params{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px}
+.fee-p-label{font-size:10px;color:var(--tx3);margin-bottom:4px}
+.fee-tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:auto}
+.fee-tbl{width:100%;border-collapse:collapse}
+.fee-tbl th{background:var(--bg3);font-size:10px;font-weight:700;color:var(--tx4);padding:10px 16px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.3px}
+.fee-tbl th:first-child{text-align:left}
+.fee-tbl td{font-size:12px;color:var(--tx2);padding:9px 16px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.fee-tbl td:first-child{text-align:left;font-family:'Noto Sans KR',sans-serif;color:var(--tx3);white-space:normal}
+.fee-tbl tr:last-child td{border-bottom:none}
+.fee-tbl .sep-row td{background:var(--bg);height:6px;padding:0;border-bottom:none}
+.fee-tbl .total-row td{background:rgba(93,168,122,.06);font-weight:700;color:var(--green)}
+.fee-tbl .total-row td:first-child{color:var(--green)}
+.fee-tbl .section-row td{background:var(--bg3);font-weight:600;color:var(--tx2);font-family:'Noto Sans KR',sans-serif;font-size:11px;letter-spacing:.1px}
+.fee-tbl .sav-row{background:rgba(93,168,122,.08)}
+.fee-tbl .sav-row td:first-child{color:var(--green);font-weight:700}
+.fee-tbl .sav-row td:last-child{color:var(--green);font-size:16px;font-weight:700}
+
+/* Right panel */
+.simulation{flex:1;min-width:0;border-left:1px solid var(--border);background:var(--bg2);overflow-y:auto;display:flex;flex-direction:column}
+.sim-inner{padding:22px 20px;display:flex;flex-direction:column;gap:11px;flex:1}
+.sim-hdr h2{font-size:14px;font-weight:700;margin-bottom:2px}
+.sim-hdr p{font-size:11px;color:var(--tx4)}
+.form-row{display:flex;flex-direction:column;gap:4px}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.form-label{font-size:11px;color:var(--tx3);display:flex;justify-content:space-between;align-items:center}
+.form-hint{font-size:10px;color:var(--tx4)}
+.sel-field,.inp-s{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx1);font-size:12px;padding:7px 10px;outline:none;width:100%;font-family:inherit;transition:border-color .15s}
+.sel-field:focus,.inp-s:focus{border-color:var(--orange)}
+.inp-s{font-family:'JetBrains Mono',monospace}
+.inp-s::placeholder{color:var(--tx4)}
+.sep{height:1px;background:var(--border)}
+.slider-row{display:flex;align-items:center;gap:8px}
+input[type=range]{flex:1;-webkit-appearance:none;height:4px;background:var(--border2);border-radius:2px;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--orange);cursor:pointer}
+.slider-val{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--orange);min-width:36px;text-align:right}
+.result-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.res-card{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:12px 14px;text-align:center}
+.res-card.highlight{border-color:var(--orange);background:rgba(218,119,86,.07)}
+.res-label{font-size:10px;color:var(--tx4);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
+.res-value{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.res-value.pos{color:var(--green)}
+.res-sub{font-size:10px;color:var(--tx4);margin-top:4px}
+.grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
+.twenty-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+.yr-cell{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:7px 5px;text-align:center;transition:background .15s}
+.yr-cell:hover{background:var(--bg4)}
+.yr-num{font-size:9px;color:var(--tx4);margin-bottom:3px}
+.yr-sav{font-size:10px;font-weight:600;color:var(--green);font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.yr-cum{font-size:9px;color:var(--tx4);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-top:2px}
+
+/* Responsive */
+@media(max-width:900px){
+  .page{flex-direction:column;height:auto;overflow:visible}
+  .simulation{flex:none;width:100%;border-left:none;border-top:1px solid var(--border)}
+  .analysis{flex:none}
+  .detail-grid{grid-template-columns:1fr}
+  .detail-card.wide{grid-column:auto}
+  .metrics{grid-template-columns:1fr 1fr}
+  .fee-params{grid-template-columns:1fr}
+  .twenty-grid{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:600px){
+  .metrics{grid-template-columns:1fr}
+  .result-cards{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-brand">
+    <svg class="hdr-solar" viewBox="0 0 34 34" fill="none">
+      <g class="hdr-rays">
+        <line x1="17" y1="1.5"  x2="17" y2="7.5"   stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="17" y1="26.5" x2="17" y2="32.5"  stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="1.5" y1="17"  x2="7.5" y2="17"   stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="26.5" y1="17" x2="32.5" y2="17"  stroke="#da7756" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="5.7" y1="5.7"  x2="9.9" y2="9.9"   stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="24.1" y1="24.1" x2="28.3" y2="28.3" stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="28.3" y1="5.7" x2="24.1" y2="9.9"   stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+        <line x1="9.9" y1="24.1" x2="5.7" y2="28.3"   stroke="#da7756" stroke-width="1.4" stroke-linecap="round" opacity=".7"/>
+      </g>
+      <circle class="hdr-core" cx="17" cy="17" r="6.5" fill="#da7756"/>
+      <circle cx="17" cy="17" r="4" fill="#e8926e" opacity=".55"/>
+    </svg>
+    <span class="hdr-title">E-PPA</span>
+  </div>
+  <div class="hdr-sep"></div>
+  <span class="hdr-page">분석 결과</span>
+  <button class="btn-back" onclick="history.back()">
+    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8H3M7 12l-4-4 4-4"/></svg>
+    돌아가기
+  </button>
+</header>
+
+<div class="page">
+
+  <!-- ── LEFT: 전력데이터 분석 ── -->
+  <div class="analysis">
+
+    <div class="fn-bar">
+      <button class="fn-btn active" data-fn="fn1">① 전력 개요</button>
+      <button class="fn-btn" data-fn="fn2">② 상세 분석</button>
+      <button class="fn-btn" data-fn="fn3">③ 요금 분석</button>
+    </div>
+
+    <!-- 기능 1: 카드 + 차트 -->
+    <section class="fn-section" id="fn1">
+      <div class="metrics" id="metric-cards"></div>
+      <div class="chart-wrap">
+        <div class="chart-title">월별 전력소비 vs 태양광 발전</div>
+        <div id="chart-area"></div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(218,119,86,.7)"></div>전력 소비</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(111,168,220,.55)"></div>초과발전 (잉여)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 기능 2: 상세 분석 -->
+    <section class="fn-section" id="fn2" style="display:none">
+      <div class="detail-grid">
+        <div class="detail-card wide" id="dc-monthly"></div>
+        <div class="detail-card" id="dc-seasonal"></div>
+        <div class="detail-card" id="dc-dow"></div>
+        <div class="detail-card wide" id="dc-heatmap"></div>
+      </div>
+    </section>
+
+    <!-- 기능 3: 요금 분석 -->
+    <section class="fn-section" id="fn3" style="display:none">
+      <div class="fee-params">
+        <div>
+          <div class="fee-p-label">망이용료 기본요금단가 <span style="color:var(--tx4)">원/kW·월</span></div>
+          <input class="inp-s" id="inp-netfee-basic" type="number" value="2000" step="100">
+        </div>
+        <div>
+          <div class="fee-p-label">거래수수료 <span style="color:var(--tx4)">원/kWh</span></div>
+          <input class="inp-s" id="inp-fee-trade" type="number" value="1.0" step="0.1">
+        </div>
+        <div>
+          <div class="fee-p-label">부가정산금 (SMP 조정) <span style="color:var(--tx4)">원/kWh</span></div>
+          <input class="inp-s" id="inp-fee-adj" type="number" value="0" step="0.1">
+        </div>
+      </div>
+      <div id="fee-table-wrap"></div>
+    </section>
+
+  </div>
+
+  <!-- ── RIGHT: 효과 분석 ── -->
+  <div class="simulation">
+    <div class="sim-inner">
+
+      <div class="sim-hdr">
+        <h2>효과 분석</h2>
+        <p>요금 조건 설정 후 절감 효과를 확인하세요</p>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">한전 요금제 <span class="form-hint">산업용</span></div>
+        <select class="sel-field" id="sel-tariff" onchange="runSim()">
+          <optgroup label="산업용(갑) I — 계절별 단일단가">
+            <option value="갑I_저압">저압 (기본 5,230원/kW)</option>
+            <option value="갑I_고압A1">고압A 선택I (5,550원/kW)</option>
+            <option value="갑I_고압A2">고압A 선택II (6,370원/kW)</option>
+            <option value="갑I_고압B1">고압B 선택I (5,550원/kW)</option>
+            <option value="갑I_고압B2">고압B 선택II (6,370원/kW)</option>
+          </optgroup>
+          <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
+            <option value="갑II_고압A1" selected>고압A 선택I (6,090원/kW)</option>
+            <option value="갑II_고압A2">고압A 선택II (6,980원/kW)</option>
+            <option value="갑II_고압B1">고압B 선택I (6,090원/kW)</option>
+            <option value="갑II_고압B2">고압B 선택II (6,980원/kW)</option>
+          </optgroup>
+          <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
+            <option value="을_고압A1">고압A 선택I (7,220원/kW)</option>
+            <option value="을_고압A2">고압A 선택II (8,320원/kW)</option>
+            <option value="을_고압A3">고압A 선택III (9,810원/kW)</option>
+            <option value="을_고압B1">고압B 선택I (6,630원/kW)</option>
+            <option value="을_고압B2">고압B 선택II (7,380원/kW)</option>
+            <option value="을_고압B3">고압B 선택III (8,190원/kW)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">계약전력 <span class="form-hint">kW</span></div>
+        <input class="inp-s" id="inp-contract" type="number" placeholder="예: 300" min="1" onchange="runSim()">
+      </div>
+
+      <div class="form-row-2">
+        <div class="form-row">
+          <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
+          <input class="inp-s" id="inp-climate" type="number" value="10" step="0.1" onchange="runSim()">
+        </div>
+        <div class="form-row">
+          <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
+          <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="runSim()">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-label">직접PPA 망이용료 유형 <span class="form-hint">별표17</span></div>
+        <select class="sel-field" id="sel-netfee" onchange="runSim()">
+          <option value="3.05">유형③④ 배전고압 동일변전소 (3.05원/kWh)</option>
+          <option value="5.49">유형⑦⑧ 다른변전소·수도권 (5.49원/kWh)</option>
+          <option value="4.47">유형⑦⑧ 다른변전소·비수도권 (4.47원/kWh)</option>
+          <option value="2.44">유형①② 송전발전·수도권 (2.44원/kWh)</option>
+          <option value="1.42">유형①② 송전발전·비수도권 (1.42원/kWh)</option>
+        </select>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="form-row">
+        <div class="form-label">KEPCO 요금 연간 상승률</div>
+        <div class="slider-row">
+          <input type="range" id="sld-esc" min="0" max="7" step="0.5" value="3"
+            oninput="document.getElementById('sld-val').textContent=parseFloat(this.value).toFixed(1)+'%';runSim()">
+          <span class="slider-val" id="sld-val">3.0%</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="result-cards">
+        <div class="res-card">
+          <div class="res-label">1차년 연간 절감액</div>
+          <div class="res-value pos" id="r-year1">—</div>
+          <div class="res-sub">VAT 포함</div>
+        </div>
+        <div class="res-card highlight">
+          <div class="res-label">20년 누적 절감액</div>
+          <div class="res-value pos" id="r-cum20">—</div>
+          <div class="res-sub">상승률 반영</div>
+        </div>
+      </div>
+
+      <div class="grid-title">연도별 절감 현황</div>
+      <div class="twenty-grid" id="twenty-grid"></div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── KEPCO 요금 (2026-06-01) ── */
+var KEPCO = {
+  '갑I_저압':    { label:'갑I 저압',     basicRate:5230, tou:false, energy:{summer:123.6,spring_fall:86.4,winter:110.8} },
+  '갑I_고압A1':  { label:'갑I 고압A-I',  basicRate:5550, tou:false, energy:{summer:123.3,spring_fall:86.5,winter:109.3} },
+  '갑I_고압A2':  { label:'갑I 고압A-II', basicRate:6370, tou:false, energy:{summer:118.8,spring_fall:82.1,winter:104.8} },
+  '갑I_고압B1':  { label:'갑I 고압B-I',  basicRate:5550, tou:false, energy:{summer:122.6,spring_fall:86.1,winter:108.5} },
+  '갑I_고압B2':  { label:'갑I 고압B-II', basicRate:6370, tou:false, energy:{summer:118.1,spring_fall:81.6,winter:104.0} },
+  '갑II_고압A1': { label:'갑II 고압A-I', basicRate:6090, tou:true, rates:{
+    summer:{peak:187.1,mid:121.2,off:76.5}, spring_fall:{peak:111.4,mid:90.9,off:76.5}, winter:{peak:158.4,mid:119.7,off:80.5} }},
+  '갑II_고압A2': { label:'갑II 고압A-II',basicRate:6980, tou:true, rates:{
+    summer:{peak:182.6,mid:116.7,off:72.0}, spring_fall:{peak:106.9,mid:86.4,off:72.0}, winter:{peak:153.9,mid:115.2,off:76.0} }},
+  '갑II_고압B1': { label:'갑II 고압B-I', basicRate:6090, tou:true, rates:{
+    summer:{peak:181.4,mid:118.5,off:75.0}, spring_fall:{peak:109.0,mid:89.2,off:75.0}, winter:{peak:154.1,mid:116.8,off:78.8} }},
+  '갑II_고압B2': { label:'갑II 고압B-II',basicRate:6980, tou:true, rates:{
+    summer:{peak:176.9,mid:114.0,off:70.5}, spring_fall:{peak:104.5,mid:84.7,off:70.5}, winter:{peak:149.6,mid:112.3,off:74.3} }},
+  '을_고압A1':   { label:'을 고압A-I',   basicRate:7220, tou:true, rates:{
+    summer:{peak:227.8,mid:145.7,off:92.8}, spring_fall:{peak:146.0,mid:115.3,off:92.8}, winter:{peak:203.4,mid:145.9,off:99.8} }},
+  '을_고압A2':   { label:'을 고압A-II',  basicRate:8320, tou:true, rates:{
+    summer:{peak:222.3,mid:140.2,off:87.3}, spring_fall:{peak:140.5,mid:109.8,off:87.3}, winter:{peak:197.9,mid:140.4,off:94.3} }},
+  '을_고압A3':   { label:'을 고압A-III', basicRate:9810, tou:true, rates:{
+    summer:{peak:209.9,mid:139.6,off:86.4}, spring_fall:{peak:132.2,mid:108.5,off:86.4}, winter:{peak:186.7,mid:139.8,off:93.7} }},
+  '을_고압B1':   { label:'을 고압B-I',   basicRate:6630, tou:true, rates:{
+    summer:{peak:229.4,mid:148.2,off:95.9}, spring_fall:{peak:148.5,mid:118.2,off:95.9}, winter:{peak:204.4,mid:148.2,off:102.9} }},
+  '을_고압B2':   { label:'을 고압B-II',  basicRate:7380, tou:true, rates:{
+    summer:{peak:225.6,mid:144.4,off:92.1}, spring_fall:{peak:144.7,mid:114.4,off:92.1}, winter:{peak:200.6,mid:144.4,off:99.1} }},
+  '을_고압B3':   { label:'을 고압B-III', basicRate:8190, tou:true, rates:{
+    summer:{peak:224.0,mid:142.7,off:90.4}, spring_fall:{peak:143.1,mid:112.8,off:90.4}, winter:{peak:198.9,mid:142.7,off:97.5} }}
+};
+
+function getSeason(m) {
+  if (m>=6&&m<=8) return 'summer';
+  if ([3,4,5,9,10].indexOf(m)>=0) return 'spring_fall';
+  return 'winter';
+}
+function energyRate(tariff, month) {
+  var s=getSeason(month);
+  if (!tariff.tou) return tariff.energy[s];
+  var r=tariff.rates[s];
+  return r.peak*0.35 + r.mid*0.45 + r.off*0.20;
+}
+function fmt(n) { return Math.round(n).toLocaleString('ko-KR'); }
+function fmtM(n) {
+  if (Math.abs(n)>=1e8) return (n/1e8).toFixed(1)+'억';
+  if (Math.abs(n)>=1e6) return (n/1e6).toFixed(1)+'M';
+  return fmt(n)+'원';
+}
+
+/* ── 샘플 데이터 ── */
+var SAMPLE = {
+  monthly: [
+    {year:2024,month:1, kwh:52400,amount:7850000,gen:18200,eff:18200,selfRate:0.347},
+    {year:2024,month:2, kwh:48100,amount:7210000,gen:20100,eff:20100,selfRate:0.418},
+    {year:2024,month:3, kwh:44600,amount:6680000,gen:26800,eff:26800,selfRate:0.601},
+    {year:2024,month:4, kwh:39800,amount:5960000,gen:30200,eff:30200,selfRate:0.759},
+    {year:2024,month:5, kwh:42300,amount:6340000,gen:33500,eff:33500,selfRate:0.792},
+    {year:2024,month:6, kwh:58700,amount:8800000,gen:34800,eff:34800,selfRate:0.593},
+    {year:2024,month:7, kwh:72100,amount:10800000,gen:32200,eff:32200,selfRate:0.447},
+    {year:2024,month:8, kwh:69400,amount:10400000,gen:33600,eff:33600,selfRate:0.484},
+    {year:2024,month:9, kwh:51200,amount:7670000,gen:29400,eff:29400,selfRate:0.574},
+    {year:2024,month:10,kwh:43500,amount:6520000,gen:25100,eff:25100,selfRate:0.577},
+    {year:2024,month:11,kwh:47800,amount:7160000,gen:19400,eff:19400,selfRate:0.406},
+    {year:2024,month:12,kwh:54900,amount:8230000,gen:17100,eff:17100,selfRate:0.311}
+  ],
+  params:{lat:37.5665,lng:126.9780,cap:100,ppa:100,tariff:152,pr:0.82},
+  ghi:{1:2.8,2:3.4,3:4.6,4:5.2,5:5.8,6:5.9,7:5.5,8:5.8,9:5.0,10:4.1,11:3.0,12:2.6},
+  generatedAt:new Date().toISOString()
+};
+
+var res=null;
+try{res=JSON.parse(localStorage.getItem('eppa_results'));}catch(e){}
+if(!res||!res.monthly||!res.monthly.length){
+  res=SAMPLE;
+  var banner=document.createElement('div');
+  banner.style.cssText='position:fixed;top:54px;left:0;right:0;background:rgba(218,119,86,.12);border-bottom:1px solid rgba(218,119,86,.3);color:#da7756;font-size:11px;text-align:center;padding:7px;z-index:200';
+  banner.textContent='샘플 데이터로 미리보기 중입니다 — 실제 데이터를 보려면 파일을 업로드하세요';
+  document.body.appendChild(banner);
+}
+
+var monthly = res.monthly;
+var params  = res.params;
+var daily   = res.daily       || null;
+var hrGrid  = res.hourlyGrid  || null;
+
+/* ── fn 탭 전환 ── */
+document.querySelectorAll('.fn-btn').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    document.querySelectorAll('.fn-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    ['fn1','fn2','fn3'].forEach(function(id){
+      document.getElementById(id).style.display=(id===btn.dataset.fn)?'':'none';
+    });
+    if(btn.dataset.fn==='fn3') renderFeeTable();
+  });
+});
+
+['inp-netfee-basic','inp-fee-trade','inp-fee-adj'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', function(){
+    if(document.getElementById('fn3').style.display!=='none') renderFeeTable();
+  });
+});
+
+/* ── 기능 1: 카드 ── */
+function renderMetrics(){
+  var totalKwh  = monthly.reduce(function(s,m){return s+m.kwh;},0);
+  var totalGen  = monthly.reduce(function(s,m){return s+m.gen;},0);
+  var totalEff  = monthly.reduce(function(s,m){return s+m.eff;},0);
+  var re100     = totalKwh>0?(totalEff/totalKwh*100):0;
+  var excessKwh = monthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
+  var excessN   = monthly.filter(function(m){return m.gen>m.kwh;}).length;
+  var overRatio = totalGen>0?(excessKwh/totalGen*100):0;
+
+  var cards=[
+    {label:'총 전력량',    value:(totalKwh/1000).toFixed(1), unit:'MWh', sub:monthly.length+'개월 합계'},
+    {label:'연간 발전량',  value:(totalGen/1000).toFixed(1), unit:'MWh',
+     sub:'초과 '+(excessKwh/1000).toFixed(1)+'MWh ('+excessN+'개월)'},
+    {label:'RE100 이행률', value:re100.toFixed(1), unit:'%',
+     sub:'잉여 '+overRatio.toFixed(1)+'% · '+(re100>=100?'목표 달성':(100-re100).toFixed(1)+'% 부족'),
+     hi:re100>=100}
+  ];
+
+  document.getElementById('metric-cards').innerHTML=cards.map(function(c){
+    return '<div class="metric-card"'+(c.hi?' style="border-color:rgba(93,168,122,.4)"':'')+'>'+
+      '<div class="metric-label">'+c.label+'</div>'+
+      '<div><span class="metric-value"'+(c.hi?' style="color:var(--green)"':'')+'>'+c.value+'</span>'+
+      '<span class="metric-unit">'+c.unit+'</span></div>'+
+      '<div class="metric-sub">'+c.sub+'</div></div>';
+  }).join('');
+}
+
+/* ── 기능 1: 차트 ── */
+function renderChart(){
+  var data=monthly, n=data.length;
+  if(!n) return;
+  var maxV=Math.max.apply(null,data.map(function(m){return m.kwh;}));
+  if(!maxV) return;
+
+  var W=600,H=200,pL=14,pR=14,pT=16,pB=28,iW=W-pL-pR,iH=H-pT-pB,baseY=pT+iH;
+
+  function px(i){return pL+(n>1?(i/(n-1))*iW:iW/2);}
+  function pyC(m){return pT+iH-(m.kwh/maxV)*iH;}
+  function pyG(m){return pT+iH-(m.gen/maxV)*iH;}
+
+  function smooth(pts){
+    if(pts.length<2) return '';
+    var d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1), t=0.18;
+    for(var i=0;i<pts.length-1;i++){
+      var p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
+      d+=' C'+(p1[0]+(p2[0]-p0[0])*t).toFixed(1)+','+(p1[1]+(p2[1]-p0[1])*t).toFixed(1)
+        +' '+(p2[0]-(p3[0]-p1[0])*t).toFixed(1)+','+(p2[1]-(p3[1]-p1[1])*t).toFixed(1)
+        +' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);
+    }
+    return d;
+  }
+
+  var cRaw=data.map(function(m,i){return[px(i),pyC(m)];});
+  var gRaw=data.map(function(m,i){return[px(i),pyG(m)];});
+  var cLine=smooth(cRaw), gLine=smooth(gRaw);
+  var segW=(n>1?iW/(n-1):iW)*0.9;
+
+  /* 초과발전 구간 강조 */
+  var excess='';
+  data.forEach(function(m,i){
+    if(m.gen>m.kwh){
+      var x=px(i), yTop=pyG(m), yBot=pyC(m);
+      excess+='<rect x="'+(x-segW/2).toFixed(1)+'" y="'+yTop.toFixed(1)+
+        '" width="'+segW.toFixed(1)+'" height="'+(yBot-yTop).toFixed(1)+
+        '" fill="rgba(111,168,220,.18)" rx="2"/>';
+    }
+  });
+
+  var labels='',dots='';
+  data.forEach(function(m,i){
+    var x=px(i);
+    labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+m.month+'월</text>';
+    dots+='<circle cx="'+x+'" cy="'+pyC(m).toFixed(1)+'" r="2.5" fill="rgba(218,119,86,.9)"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="2.5" fill="rgba(93,168,122,.9)"/>';
+  });
+
+  var svg='<defs>'
+    +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(218,119,86,.38)"/><stop offset="100%" stop-color="rgba(218,119,86,.03)"/></linearGradient>'
+    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.42)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'</defs>'
+    +excess
+    +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
+    +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
+    +'<path d="'+cLine+'" fill="none" stroke="rgba(218,119,86,.85)" stroke-width="1.8"/>'
+    +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
+    +dots+labels;
+
+  document.getElementById('chart-area').innerHTML=
+    '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;min-width:340px;height:auto">'+svg+'</svg>';
+}
+
+/* ── 기능 2: 월별 bar ── */
+function renderDetailMonthly(){
+  var el=document.getElementById('dc-monthly');
+  var maxK=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
+  var W=600,H=160,pL=40,pR=12,pT=10,pB=22,iW=W-pL-pR,iH=H-pT-pB;
+  var n=monthly.length, gap=iW/n, bW=Math.max(4,gap*0.72);
+  var SC={summer:'rgba(218,119,86,.75)',spring_fall:'rgba(93,168,122,.75)',winter:'rgba(111,168,220,.75)'};
+
+  var bars='',labels='',grid='';
+  [0,.25,.5,.75,1].forEach(function(y){
+    var py=pT+iH*(1-y);
+    grid+='<text x="'+(pL-4)+'" y="'+(py+3)+'" text-anchor="end" fill="#5a5a5a" font-size="8">'+(Math.round(maxK*y/1000))+'k</text>';
+    if(y>0) grid+='<line x1="'+pL+'" y1="'+py+'" x2="'+(W-pR)+'" y2="'+py+'" stroke="#3d3d3d" stroke-width=".5"/>';
+  });
+  monthly.forEach(function(m,i){
+    var x=pL+i*gap+(gap-bW)/2, bH=(m.kwh/maxK)*iH, by=pT+iH-bH;
+    bars+='<rect x="'+x.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+'" fill="'+SC[getSeason(m.month)]+'" rx="2"/>';
+    labels+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(H-5)+'" text-anchor="middle" fill="#5a5a5a" font-size="8">'+m.month+'</text>';
+  });
+
+  el.innerHTML='<div class="detail-title">월별 전력사용량 (kWh)</div>'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'+grid+bars+labels+'</g></svg>'
+    +'<div style="display:flex;gap:12px;margin-top:6px;font-size:10px;color:var(--tx4)">'
+    +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:1px;background:rgba(218,119,86,.75);margin-right:3px;vertical-align:middle"></i>여름</span>'
+    +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:1px;background:rgba(93,168,122,.75);margin-right:3px;vertical-align:middle"></i>봄·가을</span>'
+    +'<span><i style="display:inline-block;width:8px;height:8px;border-radius:1px;background:rgba(111,168,220,.75);margin-right:3px;vertical-align:middle"></i>겨울</span>'
+    +'</div>';
+}
+
+/* ── 기능 2: 계절별 ── */
+function renderDetailSeasonal(){
+  var el=document.getElementById('dc-seasonal');
+  var SEAS={
+    summer:     {name:'여름',  months:[6,7,8],      col:'rgba(218,119,86,.75)'},
+    spring_fall:{name:'봄·가을',months:[3,4,5,9,10],col:'rgba(93,168,122,.75)'},
+    winter:     {name:'겨울', months:[11,12,1,2],   col:'rgba(111,168,220,.75)'}
+  };
+  var groups=Object.keys(SEAS).map(function(sk){
+    var ms=monthly.filter(function(m){return SEAS[sk].months.indexOf(m.month)>=0;});
+    var avg=ms.length?ms.reduce(function(s,m){return s+m.kwh;},0)/ms.length:0;
+    var peak=ms.length?Math.max.apply(null,ms.map(function(m){return m.kwh;})):0;
+    return {name:SEAS[sk].name,avg:avg,peak:peak,col:SEAS[sk].col};
+  });
+  var maxV=Math.max.apply(null,groups.map(function(g){return g.peak;}));
+  var W=240,H=160,pL=32,pR=8,pT=10,pB=22,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/3, bW=26, bars='',labels='',grid='';
+
+  [0,.5,1].forEach(function(y){
+    var py=pT+iH*(1-y);
+    grid+='<text x="'+(pL-3)+'" y="'+(py+3)+'" text-anchor="end" fill="#5a5a5a" font-size="7">'+(Math.round(maxV*y/1000))+'k</text>';
+    if(y>0) grid+='<line x1="'+pL+'" y1="'+py+'" x2="'+(W-pR)+'" y2="'+py+'" stroke="#3d3d3d" stroke-width=".5"/>';
+  });
+  groups.forEach(function(g,i){
+    var cx=pL+i*gap+gap/2;
+    var pH=(g.peak/maxV)*iH, py=pT+iH-pH;
+    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="'+g.col.replace('.75','.28')+'" rx="2"/>';
+    var aH=(g.avg/maxV)*iH, ay=pT+iH-aH;
+    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="'+g.col+'" rx="2"/>';
+    labels+='<text x="'+cx+'" y="'+(H-5)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+g.name+'</text>';
+  });
+
+  el.innerHTML='<div class="detail-title">계절별 월평균 전력 (kWh)</div>'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'+grid+bars+labels+'</g></svg>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">진한색=월평균 · 연한색=최대월</div>';
+}
+
+/* ── 기능 2: 요일별 (AMI only) ── */
+function renderDetailDow(){
+  var el=document.getElementById('dc-dow');
+  if(!daily){
+    el.innerHTML='<div class="detail-title">요일별 전력사용량</div>'
+      +'<div class="ami-placeholder">'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>'
+      +'AMI (15분 간격) 데이터 업로드 시 표시됩니다</div>';
+    return;
+  }
+  var DOW=['일','월','화','수','목','금','토'];
+  var stats=DOW.map(function(){return{sum:0,cnt:0,peak:0};});
+  daily.forEach(function(d){
+    stats[d.dow].sum+=d.kwh; stats[d.dow].cnt++;
+    stats[d.dow].peak=Math.max(stats[d.dow].peak,d.kwh);
+  });
+  var maxV=Math.max.apply(null,stats.map(function(s){return s.peak;}));
+  var W=240,H=160,pL=32,pR=8,pT=10,pB=22,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/7, bW=16, bars='',labels='',grid='';
+
+  [0,.5,1].forEach(function(y){
+    var py=pT+iH*(1-y);
+    grid+='<text x="'+(pL-3)+'" y="'+(py+3)+'" text-anchor="end" fill="#5a5a5a" font-size="7">'+(Math.round(maxV*y/1000))+'k</text>';
+    if(y>0) grid+='<line x1="'+pL+'" y1="'+py+'" x2="'+(W-pR)+'" y2="'+py+'" stroke="#3d3d3d" stroke-width=".5"/>';
+  });
+  stats.forEach(function(s,i){
+    var cx=pL+i*gap+gap/2, avg=s.cnt?s.sum/s.cnt:0;
+    var pH=(s.peak/maxV)*iH, py=pT+iH-pH;
+    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="rgba(111,168,220,.28)" rx="2"/>';
+    var aH=(avg/maxV)*iH, ay=pT+iH-aH;
+    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="rgba(111,168,220,.75)" rx="2"/>';
+    labels+='<text x="'+cx+'" y="'+(H-5)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+DOW[i]+'</text>';
+  });
+
+  el.innerHTML='<div class="detail-title">요일별 전력사용량</div>'
+    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'+grid+bars+labels+'</g></svg>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">진한색=일평균 · 연한색=최대일</div>';
+}
+
+/* ── 기능 2: 시간대 히트맵 (AMI only) ── */
+function renderDetailHeatmap(){
+  var el=document.getElementById('dc-heatmap');
+  if(!hrGrid){
+    el.innerHTML='<div class="detail-title">월 × 시간대별 전력사용량</div>'
+      +'<div class="ami-placeholder">'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><rect x="2" y="2" width="9" height="9"/><rect x="13" y="2" width="9" height="9"/><rect x="2" y="13" width="9" height="9"/><rect x="13" y="13" width="9" height="9"/></svg>'
+      +'AMI (15분 간격) 데이터 업로드 시 표시됩니다</div>';
+    return;
+  }
+  var vals=[];
+  for(var m=1;m<=12;m++) for(var h=0;h<12;h++) vals.push(hrGrid[m+'-'+h]||0);
+  var maxV=Math.max.apply(null,vals)||1;
+  var HR=['0-2','2-4','4-6','6-8','8-10','10-12','12-14','14-16','16-18','18-20','20-22','22-24'];
+  var ML=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  var cW=36,cH=18,ml=34,mt=22,gp=2;
+  var W=ml+12*(cW+gp)+8, H=mt+12*(cH+gp)+6;
+  var cells='',xLbl='',yLbl='';
+
+  HR.forEach(function(l,h){
+    xLbl+='<text x="'+(ml+h*(cW+gp)+cW/2)+'" y="14" text-anchor="middle" fill="#5a5a5a" font-size="7">'+l+'</text>';
+  });
+  ML.forEach(function(l,m){
+    yLbl+='<text x="'+(ml-3)+'" y="'+(mt+m*(cH+gp)+cH/2+3)+'" text-anchor="end" fill="#5a5a5a" font-size="7">'+l+'</text>';
+  });
+  for(var m=1;m<=12;m++){
+    for(var h=0;h<12;h++){
+      var v=(hrGrid[m+'-'+h]||0)/maxV;
+      var r=Math.round(26+v*(218-26)), g2=Math.round(26+v*(119-26)), b=Math.round(26+v*(86-26));
+      cells+='<rect x="'+(ml+(h)*(cW+gp))+'" y="'+(mt+(m-1)*(cH+gp))+'" width="'+cW+'" height="'+cH+'" fill="rgb('+r+','+g2+','+b+')" rx="2"/>';
+    }
+  }
+  el.innerHTML='<div class="detail-title">월 × 시간대별 평균 전력사용량</div>'
+    +'<div style="overflow-x:auto"><svg viewBox="0 0 '+W+' '+H+'" style="min-width:480px;width:100%;height:auto">'+xLbl+yLbl+cells+'</svg></div>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">어두울수록 낮음 · 주황색에 가까울수록 높음</div>';
+}
+
+/* ── 기능 3: 요금 분석 테이블 ── */
+function renderFeeTable(){
+  var tariffKey   = document.getElementById('sel-tariff').value;
+  var tariff      = KEPCO[tariffKey];
+  var contractKw  = parseFloat(document.getElementById('inp-contract').value)||0;
+  var netFeeUsage = parseFloat(document.getElementById('sel-netfee').value);
+  var netFeeBasic = parseFloat(document.getElementById('inp-netfee-basic').value)||2000;
+  var climate     = parseFloat(document.getElementById('inp-climate').value)||10;
+  var fuel        = parseFloat(document.getElementById('inp-fuel').value)||5;
+  var feeTradeR   = parseFloat(document.getElementById('inp-fee-trade').value)||1.0;
+  var feeAdjR     = parseFloat(document.getElementById('inp-fee-adj').value)||0;
+  var ppa         = params.ppa;
+  var cap         = params.cap;
+
+  var totalKwh = monthly.reduce(function(s,m){return s+m.kwh;},0);
+  var totalEff = monthly.reduce(function(s,m){return s+m.eff;},0);
+  var remainKwh= totalKwh-totalEff;
+
+  /* 한전 전체 요금 */
+  var kBasic  = tariff.basicRate*contractKw*12;
+  var kEnergy = monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
+  var kClim   = climate*totalKwh, kFuel=fuel*totalKwh;
+  var kSub    = kBasic+kEnergy+kClim+kFuel;
+  var kVat    = kSub*0.10, kFund=kSub*0.037;
+  var kTotal  = kSub+kVat+kFund;
+
+  /* PPA 비용 */
+  var p1 = ppa*totalEff;
+  var p2b= netFeeBasic*Math.min(cap,contractKw)*12;
+  var p2u= netFeeUsage*totalEff;
+  var p2 = p2b+p2u;
+  var p3 = feeTradeR*totalEff;
+  var p4 = feeAdjR*totalEff;
+  var pSub= p1+p2+p3+p4;
+  var p5  = pSub*0.10, p6=pSub*0.037;
+  var pTotal= pSub+p5+p6;
+
+  /* 한전 잔여 */
+  var rBasic = kBasic;
+  var rEnergy= monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*(m.kwh-m.eff);},0);
+  var rClim  = climate*remainKwh, rFuel=fuel*remainKwh;
+  var rSub   = rBasic+rEnergy+rClim+rFuel;
+  var rVat   = rSub*0.10, rFund=rSub*0.037;
+  var rTotal = rSub+rVat+rFund;
+
+  var totalCost = pTotal+rTotal;
+  var savings   = kTotal-totalCost;
+
+  function W(n){return '<span style="font-family:\'JetBrains Mono\',monospace">'+fmt(Math.round(n))+'</span>';}
+
+  var body='<tbody>';
+  body+='<tr class="section-row"><td colspan="2">① 한전 전기요금 전체 (PPA 미도입 기준)</td></tr>';
+  body+='<tr><td style="padding-left:24px">기본요금 ('+tariff.basicRate.toLocaleString()+'원/kW × '+contractKw+'kW × 12)</td><td>'+W(kBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">전력량 요금</td><td>'+W(kEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">기후환경요금 ('+climate+'원/kWh)</td><td>'+W(kClim)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">연료비조정요금 ('+fuel+'원/kWh)</td><td>'+W(kFuel)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">부가가치세 10%</td><td>'+W(kVat)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">전력산업기반기금 3.7%</td><td>'+W(kFund)+'</td></tr>';
+  body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(kTotal)+'</td></tr>';
+  body+='<tr class="sep-row"><td colspan="2"></td></tr>';
+
+  body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (태양광 자급분 '+fmt(Math.round(totalEff/1000))+'MWh)</td></tr>';
+  body+='<tr><td style="padding-left:24px">① 전력량 요금 ('+ppa+'원/kWh)</td><td>'+W(p1)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">② 송배전용요금 (망이용료)</td><td></td></tr>';
+  body+='<tr><td style="padding-left:40px">기본요금 ('+netFeeBasic+'원/kW·월 × '+Math.min(cap,contractKw)+'kW × 12)</td><td>'+W(p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:40px">사용요금 ('+netFeeUsage+'원/kWh)</td><td>'+W(p2u)+'</td></tr>';
+  body+='<tr><td style="padding-left:40px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">④ 부가정산금 ('+feeAdjR+'원/kWh)</td><td>'+W(p4)+'</td></tr>';
+  body+='<tr style="background:var(--bg3)"><td style="color:var(--tx4);font-size:10px;padding-left:24px">PPA 소계 (세전)</td><td style="color:var(--tx4)">'+W(pSub)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">⑤ 부가가치세 10%</td><td>'+W(p5)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">⑥ 전력산업기반기금 3.7%</td><td>'+W(p6)+'</td></tr>';
+  body+='<tr class="total-row"><td>PPA 합계</td><td>'+W(pTotal)+'</td></tr>';
+  body+='<tr class="sep-row"><td colspan="2"></td></tr>';
+
+  body+='<tr class="section-row"><td colspan="2">③ 한전 잔여 전기요금 (태양광 제외분)</td></tr>';
+  body+='<tr><td style="padding-left:24px">기본요금</td><td>'+W(rBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">전력량 요금</td><td>'+W(rEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">기후환경+연료비조정</td><td>'+W(rClim+rFuel)+'</td></tr>';
+  body+='<tr><td style="padding-left:24px">부가가치세+기금</td><td>'+W(rVat+rFund)+'</td></tr>';
+  body+='<tr class="total-row"><td>한전 잔여 합계</td><td>'+W(rTotal)+'</td></tr>';
+  body+='<tr class="sep-row"><td colspan="2"></td></tr>';
+
+  body+='<tr style="font-weight:600;background:var(--bg3)"><td>총 비용 합계 (PPA + 잔여 한전)</td><td>'+W(totalCost)+'</td></tr>';
+  body+='<tr class="sav-row"><td>절감액 (연간)</td><td>'+fmt(Math.round(savings))+'원</td></tr>';
+  body+='</tbody>';
+
+  document.getElementById('fee-table-wrap').innerHTML=
+    '<div class="fee-tbl-wrap"><table class="fee-tbl">'
+    +'<thead><tr><th style="text-align:left;width:65%">항목</th><th>연간 금액 (원)</th></tr></thead>'
+    +body+'</table></div>';
+}
+
+/* ── 20년 시뮬레이션 ── */
+function runSim(){
+  var tariff = KEPCO[document.getElementById('sel-tariff').value];
+  var netFee = parseFloat(document.getElementById('sel-netfee').value);
+  var climate= parseFloat(document.getElementById('inp-climate').value)||10;
+  var fuel   = parseFloat(document.getElementById('inp-fuel').value)||5;
+  var esc    = parseFloat(document.getElementById('sld-esc').value)/100;
+  var ppa    = params.ppa, cum=0, years=[];
+
+  for(var y=1;y<=20;y++){
+    var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0;
+    monthly.forEach(function(m){
+      var er=energyRate(tariff,m.month)*kF;
+      var vK=(er+(climate+fuel)*kF)*1.127, vP=(ppa+netFee)*1.127;
+      ann+=Math.max(0,(vK-vP)*m.eff*sF);
+    });
+    cum+=ann; years.push({year:y,sav:ann,cum:cum});
+  }
+  document.getElementById('r-year1').textContent=fmtM(years[0].sav);
+  document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
+  document.getElementById('twenty-grid').innerHTML=years.map(function(y){
+    return '<div class="yr-cell"><div class="yr-num">'+y.year+'년차</div>'
+      +'<div class="yr-sav">'+fmtM(y.sav)+'</div>'
+      +'<div class="yr-cum">↑'+fmtM(y.cum)+'</div></div>';
+  }).join('');
+  if(document.getElementById('fn3').style.display!=='none') renderFeeTable();
+}
+
+/* ── 초기화 ── */
+(function init(){
+  var maxKwh=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
+  document.getElementById('inp-contract').value=Math.round(maxKwh/(720*0.6)/10)*10||'';
+  renderMetrics();
+  renderChart();
+  renderDetailMonthly();
+  renderDetailSeasonal();
+  renderDetailDow();
+  renderDetailHeatmap();
+  runSim();
+})();
+</script>
+</body>
+</html>
