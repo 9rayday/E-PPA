@@ -384,6 +384,32 @@ var params =res.params;
 var daily  =res.daily     ||null;
 var hrGrid =res.hourlyGrid||null;
 
+/* 샘플 데이터 사용 시 더미 daily/hrGrid 생성 */
+if(!daily){
+  var _days=[31,29,31,30,31,30,31,31,30,31,30,31];
+  var _dowF=[0.72,1.05,1.08,1.10,1.08,1.00,0.74]; /* 일~토 */
+  var _dd=[];
+  for(var _m=1;_m<=12;_m++){
+    var _mo=monthly.filter(function(x){return x.month===_m;})[0];
+    var _avg=_mo?_mo.kwh/_days[_m-1]:1500;
+    for(var _d=0;_d<_days[_m-1];_d++){
+      var _dow=new Date(2024,_m-1,_d+1).getDay();
+      _dd.push({dow:_dow,kwh:Math.round(_avg*_dowF[_dow]*(0.88+Math.random()*0.24))});
+    }
+  }
+  daily=_dd;
+}
+if(!hrGrid){
+  var _hF=[0.18,0.15,0.20,0.38,0.85,0.95,0.98,0.95,0.90,0.78,0.55,0.30]; /* 0-2h ~ 22-24h */
+  var _days2=[31,29,31,30,31,30,31,31,30,31,30,31];
+  hrGrid={};
+  for(var _m=1;_m<=12;_m++){
+    var _mo=monthly.filter(function(x){return x.month===_m;})[0];
+    var _avg=_mo?_mo.kwh/_days2[_m-1]:1500;
+    for(var _h=0;_h<12;_h++) hrGrid[_m+'-'+_h]=Math.round(_avg/12*_hF[_h]*2.4);
+  }
+}
+
 /* ── fn 탭 전환 ── */
 document.querySelectorAll('.fn-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
