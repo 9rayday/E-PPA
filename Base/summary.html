@@ -646,11 +646,11 @@ function renderDetailHeatmap(){
     return;
   }
 
-  /* 아래→위 순서: 겨울·봄가을·여름 */
+  /* 아래→위 순서: 겨울·봄가을·여름 — 모노톤(어두운→밝은) */
   var STACK=[
-    {key:'winter',     name:'겨울',   months:[11,12,1,2],   col:'rgba(111,168,220,.82)'},
-    {key:'spring_fall',name:'봄·가을',months:[3,4,5,9,10],  col:'rgba(93,168,122,.82)'},
-    {key:'summer',     name:'여름',   months:[6,7,8],       col:'rgba(218,119,86,.82)'}
+    {key:'winter',     name:'겨울',   months:[11,12,1,2],   col:'rgba(80,80,80,.95)',  txtFill:'rgba(255,255,255,.85)'},
+    {key:'spring_fall',name:'봄·가을',months:[3,4,5,9,10],  col:'rgba(140,140,140,.9)',txtFill:'rgba(255,255,255,.85)'},
+    {key:'summer',     name:'여름',   months:[6,7,8],       col:'rgba(210,210,210,.85)',txtFill:'rgba(30,30,30,.9)'}
   ];
   var HR=['0시','2시','4시','6시','8시','10시','12시','14시','16시','18시','20시','22시'];
 
@@ -690,9 +690,9 @@ function renderDetailHeatmap(){
       var v=sData[s.key][xi];
       var segH=(v/maxT)*iH,segY=curY-segH;
       bars+='<rect x="'+x.toFixed(1)+'" y="'+segY.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+segH.toFixed(1)+'" fill="'+s.col+'" rx="1"/>';
-      /* 세그먼트 높이 6px 이상이면 값 표시 */
-      if(segH>6){
-        valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(segY+segH/2+2.5).toFixed(1)+'" text-anchor="middle" fill="rgba(255,255,255,.88)" font-size="6" font-weight="600">'+Math.round(v)+'</text>';
+      /* 세그먼트 높이 4px 이상이면 값 표시 */
+      if(segH>4){
+        valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(segY+segH/2+2).toFixed(1)+'" text-anchor="middle" fill="'+s.txtFill+'" font-size="5.5" font-weight="600">'+Math.round(v)+'</text>';
       }
       curY=segY;
     });
@@ -705,9 +705,9 @@ function renderDetailHeatmap(){
     +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
     +grid+bars+valLbls+xLbls+'</g></svg>'
     +'<div style="display:flex;gap:14px;margin-top:4px;font-size:10px;color:var(--tx4)">'
-    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(218,119,86,.82);vertical-align:middle;margin-right:4px;border-radius:1px"></i>여름</span>'
-    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(93,168,122,.82);vertical-align:middle;margin-right:4px;border-radius:1px"></i>봄·가을</span>'
-    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(111,168,220,.82);vertical-align:middle;margin-right:4px;border-radius:1px"></i>겨울</span>'
+    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(210,210,210,.85);vertical-align:middle;margin-right:4px;border-radius:1px"></i>여름</span>'
+    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(140,140,140,.9);vertical-align:middle;margin-right:4px;border-radius:1px"></i>봄·가을</span>'
+    +'<span><i style="display:inline-block;width:10px;height:10px;background:rgba(80,80,80,.95);vertical-align:middle;margin-right:4px;border-radius:1px;border:1px solid #444"></i>겨울</span>'
     +'</div>';
 }
 
