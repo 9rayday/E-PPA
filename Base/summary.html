@@ -860,34 +860,41 @@ function runSim(){
       var er=energyRate(tariff,m.month)*kF;
       var vK=(er+(climate+fuel)*kF)*1.127;
       var vP=(ppa+netFee+trade+adj)*1.127;
-      ann+=Math.max(0,(vK-vP)*m.eff*sF);
+      ann+=(vK-vP)*m.eff*sF;   /* max(0,...) 제거 — 음수 절감도 반영 */
     });
     cum+=ann;years.push({year:y,sav:ann,cum:cum});
   }
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
-  /* ── 연도별 막대+선 차트 ── */
-  var maxSav=Math.max.apply(null,years.map(function(y){return Math.max(0,y.sav);}));
-  if(!maxSav)maxSav=1;
-  var W=680,H=162,pL=54,pR=14,pT=24,pB=26,iW=W-pL-pR,iH=H-pT-pB;
-  var baseY=pT+iH;
+  /* ── 연도별 막대+선 차트 (음수 지원) ── */
+  var maxSav=Math.max.apply(null,years.map(function(y){return y.sav;}));
+  var minSav=Math.min.apply(null,years.map(function(y){return y.sav;}));
+  var posMax=Math.max(maxSav,0),negMin=Math.min(minSav,0);
+  var range=posMax-negMin||1;
+  var W=680,H=170,pL=54,pR=14,pT=24,pB=26,iW=W-pL-pR,iH=H-pT-pB;
+  /* 0선 Y좌표 */
+  var zeroY=pT+posMax/range*iH;
   var gap=iW/20,bW=gap*0.52;
   var bars='',xLbls='',axes='',linePts=[];
-  /* Y축 + 가이드라인 */
-  [0,0.5,1].forEach(function(r){
-    var y=pT+iH*(1-r);
-    axes+='<text x="'+(pL-5)+'" y="'+(y+3.5)+'" text-anchor="end" fill="#6a6a6a" font-size="7.5">'+fmtM(maxSav*r)+'</text>';
-    axes+='<line x1="'+pL+'" y1="'+y.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+y.toFixed(1)+'" stroke="#2e2e2e" stroke-width="'+(r===0?'1':'.5')+'" stroke-dasharray="'+(r>0?'3,3':'')+'" />';
+  /* Y축 레이블 + 가이드라인 */
+  var axTicks=[negMin,0,posMax].filter(function(v,i,a){return a.indexOf(v)===i&&range>0;});
+  axTicks.forEach(function(v){
+    var ay=zeroY-(v/range)*iH;
+    axes+='<text x="'+(pL-5)+'" y="'+(ay+3.5)+'" text-anchor="end" fill="'+(v===0?'#8a8a8a':'#6a6a6a')+'" font-size="7.5">'+fmtM(v)+'</text>';
+    axes+='<line x1="'+pL+'" y1="'+ay.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+ay.toFixed(1)+
+      '" stroke="'+(v===0?'#5a5a5a':'#2e2e2e')+'" stroke-width="'+(v===0?'1':'.5')+
+      '" stroke-dasharray="'+(v===0?'':'3,3')+'"/>';
   });
-  /* 막대(주황) + 세로 값 표시 + 선 포인트 */
+  /* 막대 + 값 표시 */
   years.forEach(function(yr,i){
     var cx=pL+i*gap+gap/2;
-    var bH=yr.sav>0?(yr.sav/maxSav)*iH:0;
-    var topY=pT+iH-bH;
-    /* 막대 — 주황 */
+    var isPos=yr.sav>=0;
+    var bH=Math.abs(yr.sav/range*iH);
+    var topY=isPos?zeroY-bH:zeroY;
+    /* 막대 색: 양수=주황, 음수=적색 */
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
-      '" fill="rgba(218,119,86,.72)" rx="1.5"/>';
-    /* 값 표시: 막대 높이 충분하면 내부 세로, 아니면 막대 위 */
+      '" fill="'+(isPos?'rgba(218,119,86,.72)':'rgba(210,70,70,.60)')+'" rx="1.5"/>';
+    /* 값 표시 */
     var valTxt=fmtM(yr.sav);
     if(bH>=24){
       var my=(topY+bH/2).toFixed(1);
@@ -897,13 +904,14 @@ function runSim(){
         ' transform="rotate(-90,'+cx.toFixed(1)+','+my+')">'
         +valTxt+'</text>';
     } else if(bH>2){
-      bars+='<text x="'+cx.toFixed(1)+'" y="'+(topY-3).toFixed(1)+
-        '" text-anchor="middle" fill="rgba(218,119,86,.9)" font-size="6.5">'+valTxt+'</text>';
+      var lblY=isPos?(topY-3).toFixed(1):(topY+bH+9).toFixed(1);
+      bars+='<text x="'+cx.toFixed(1)+'" y="'+lblY+
+        '" text-anchor="middle" fill="'+(isPos?'rgba(218,119,86,.9)':'rgba(210,70,70,.9)')+'" font-size="6.5">'+valTxt+'</text>';
     }
     /* x축 레이블 */
     if((i+1)%5===0||i===0)
       xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" fill="#6a6a6a" font-size="7.5">'+(i+1)+'년</text>';
-    linePts.push([cx, topY]);
+    linePts.push([cx, zeroY-(yr.sav/range*iH)]);
   });
   var savLine=smoothLine(linePts);
   var lineDots=linePts.map(function(p,i){
