@@ -70,6 +70,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .sim-row{display:grid;gap:8px}
 .sim-row-2{grid-template-columns:1fr 1fr}
 .sim-row-3{grid-template-columns:1fr 1fr 1fr}
+.sim-row-4{grid-template-columns:1fr 1fr 1fr 1fr}
 .form-label{font-size:11px;color:var(--tx3);margin-bottom:4px;display:flex;justify-content:space-between}
 .form-hint{font-size:10px;color:var(--tx4)}
 .sel-field,.inp-s{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx1);font-size:12px;padding:7px 10px;outline:none;width:100%;font-family:inherit;transition:border-color .15s}
@@ -200,14 +201,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <!-- 가정값 입력 -->
       <div class="sim-section">
 
-        <!-- Row 1: 설비용량 / 발전시간 -->
+        <!-- Row 1: 설비용량 / 연평균 발전시간 -->
         <div class="sim-row sim-row-2">
           <div>
             <div class="form-label">설비용량 <span class="form-hint">kW</span></div>
             <input class="inp-s" id="inp-cap" type="number" placeholder="예: 500" min="1" onchange="onAssumptionChange()">
           </div>
           <div>
-            <div class="form-label">연간 발전시간 <span class="form-hint">시간/년</span></div>
+            <div class="form-label">연평균 발전시간 <span class="form-hint">h/년</span></div>
             <input class="inp-s" id="inp-hours" type="number" placeholder="예: 1200" step="10" onchange="onAssumptionChange()">
           </div>
         </div>
@@ -254,20 +255,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
 
-        <!-- Row 3: 기후환경요금 / 연료비조정 -->
+        <!-- Row 3: PPA 단가 / 망이용료 사용요금 유형 -->
         <div class="sim-row sim-row-2">
           <div>
-            <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-climate" type="number" value="9" step="0.1" onchange="onAssumptionChange()">
+            <div class="form-label">PPA 단가 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-ppa" type="number" placeholder="예: 100" step="0.1" onchange="onAssumptionChange()">
           </div>
-          <div>
-            <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
-          </div>
-        </div>
-
-        <!-- Row 4: 망이용료 / 거래수수료 / 부가정산금 -->
-        <div class="sim-row sim-row-3">
           <div>
             <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
             <select class="sel-field" id="sel-netfee" onchange="onAssumptionChange()">
@@ -277,6 +270,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="2.44">유형①② 송전발전·수도권 (2.44원/kWh)</option>
               <option value="1.42">유형①② 송전발전·비수도권 (1.42원/kWh)</option>
             </select>
+          </div>
+        </div>
+
+        <!-- Row 4: 기후환경요금 / 연료비조정 / 거래수수료 / 부가정산금 -->
+        <div class="sim-row sim-row-4">
+          <div>
+            <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-climate" type="number" value="9" step="0.1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
           </div>
           <div>
             <div class="form-label">거래수수료 <span class="form-hint">원/kWh</span></div>
@@ -402,6 +407,7 @@ try{res=JSON.parse(localStorage.getItem('eppa_results'));}catch(e){}
 if(!res||!res.monthly||!res.monthly.length) res=SAMPLE;
 
 var monthly=res.monthly;
+var effMonthly=monthly;
 var params =res.params;
 var daily  =res.daily     ||null;
 var hrGrid =res.hourlyGrid||null;
@@ -445,19 +451,39 @@ document.querySelectorAll('.fn-btn').forEach(function(btn){
 });
 
 /* ── 가정값 변경 시 → 테이블 + 시뮬레이션 동시 갱신 ── */
+function updateEffMonthly(){
+  var c=parseFloat(document.getElementById('inp-cap').value)||0;
+  var h=parseFloat(document.getElementById('inp-hours').value)||0;
+  if(c>0&&h>0){
+    var newAnn=c*h;
+    var orig=monthly.reduce(function(s,m){return s+m.eff;},0);
+    var sc=orig>0?newAnn/orig:1;
+    effMonthly=monthly.map(function(m){
+      var e=Math.round(m.eff*sc);
+      var g=Math.round(m.gen*sc);
+      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:Math.min(1,e/m.kwh)};
+    });
+  } else {
+    effMonthly=monthly;
+  }
+}
+
 function onAssumptionChange(){
+  updateEffMonthly();
+  renderMetrics();
+  requestAnimationFrame(renderChart);
   renderFeeTable();
   runSim();
 }
 
 /* ── 기능 1: 카드 ── */
 function renderMetrics(){
-  var totalKwh =monthly.reduce(function(s,m){return s+m.kwh;},0);
-  var totalGen =monthly.reduce(function(s,m){return s+m.gen;},0);
-  var totalEff =monthly.reduce(function(s,m){return s+m.eff;},0);
+  var totalKwh =effMonthly.reduce(function(s,m){return s+m.kwh;},0);
+  var totalGen =effMonthly.reduce(function(s,m){return s+m.gen;},0);
+  var totalEff =effMonthly.reduce(function(s,m){return s+m.eff;},0);
   var re100    =totalKwh>0?(totalEff/totalKwh*100):0;
-  var excessKwh=monthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
-  var excessN  =monthly.filter(function(m){return m.gen>m.kwh;}).length;
+  var excessKwh=effMonthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
+  var excessN  =effMonthly.filter(function(m){return m.gen>m.kwh;}).length;
   var overRatio=totalGen>0?(excessKwh/totalGen*100):0;
 
   document.getElementById('metric-cards').innerHTML=[
@@ -478,7 +504,7 @@ function renderMetrics(){
 
 /* ── 기능 1: 차트 ── */
 function renderChart(){
-  var data=monthly,n=data.length;
+  var data=effMonthly,n=data.length;
   if(!n) return;
   var maxV=Math.max.apply(null,data.map(function(m){return m.kwh;}));
   if(!maxV) return;
@@ -721,16 +747,16 @@ function renderFeeTable(){
   var fuel       =parseFloat(document.getElementById('inp-fuel').value)||5;
   var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
   var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
-  var ppa=params.ppa;
+  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
   var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
 
-  var totalKwh=monthly.reduce(function(s,m){return s+m.kwh;},0);
-  var totalEff=monthly.reduce(function(s,m){return s+m.eff;},0);
+  var totalKwh=effMonthly.reduce(function(s,m){return s+m.kwh;},0);
+  var totalEff=effMonthly.reduce(function(s,m){return s+m.eff;},0);
   var remainKwh=totalKwh-totalEff;
 
   /* 한전 전체 */
   var kBasic =tariff.basicRate*contractKw*12;
-  var kEnergy=monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
+  var kEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
   var kClim  =climate*totalKwh,kFuel=fuel*totalKwh;
   var kSub   =kBasic+kEnergy+kClim+kFuel;
   var kVat   =kSub*0.10,kFund=kSub*0.027,kTotal=kSub+kVat+kFund;
@@ -745,7 +771,7 @@ function renderFeeTable(){
 
   /* 한전 잔여 */
   var rBasic =kBasic;
-  var rEnergy=monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*(m.kwh-m.eff);},0);
+  var rEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*(m.kwh-m.eff);},0);
   var rClim  =climate*remainKwh,rFuel=fuel*remainKwh;
   var rSub   =rBasic+rEnergy+rClim+rFuel;
   var rVat   =rSub*0.10,rFund=rSub*0.027,rTotal=rSub+rVat+rFund;
@@ -806,11 +832,11 @@ function runSim(){
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
   var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
-  var ppa=params.ppa,cum=0,years=[];
+  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa,cum=0,years=[];
 
   for(var y=1;y<=20;y++){
     var kF=Math.pow(1+esc,y-1),sF=Math.pow(0.995,y-1),ann=0;
-    monthly.forEach(function(m){
+    effMonthly.forEach(function(m){
       var er=energyRate(tariff,m.month)*kF;
       var vK=(er+(climate+fuel)*kF)*1.127;
       var vP=(ppa+netFee+trade+adj)*1.127;
@@ -832,10 +858,12 @@ function runSim(){
   var maxKwh=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
   var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
   document.getElementById('inp-contract').value=Math.round(maxKwh/(720*0.6)/10)*10||'';
+  if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
   if(params.cap){
     document.getElementById('inp-cap').value=params.cap;
     document.getElementById('inp-hours').value=params.cap?Math.round(totalEff0/params.cap):'';
   }
+  updateEffMonthly();
   renderMetrics();
   renderDetailMonthly();
   renderDetailSeasonal();
