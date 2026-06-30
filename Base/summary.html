@@ -116,13 +116,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .res-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
 .res-value.pos{color:var(--green)}
 .res-sub{font-size:10px;color:var(--tx4);margin-top:5px}
-.grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
-.twenty-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
-.yr-cell{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rs);padding:9px 6px;text-align:center;transition:background .15s}
-.yr-cell:hover{background:var(--bg3)}
-.yr-num{font-size:9px;color:var(--tx4);margin-bottom:3px}
-.yr-sav{font-size:11px;font-weight:600;color:var(--green);font-family:'JetBrains Mono',monospace;white-space:nowrap}
-.yr-cum{font-size:9px;color:var(--tx4);font-family:'JetBrains Mono',monospace;white-space:nowrap;margin-top:2px}
+.grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-top:14px;margin-bottom:6px}
+.twenty-grid{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
 
 /* Responsive */
 @media(max-width:900px){
@@ -133,7 +128,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   .sim-grid{grid-template-columns:1fr 1fr}
   .sim-grid .span2{grid-column:span 2}
   .sim-grid .span3{grid-column:span 2}
-  .twenty-grid{grid-template-columns:repeat(4,1fr)}
+  .twenty-grid{padding:10px 12px}
 }
 @media(max-width:600px){
   .metrics{grid-template-columns:1fr}
@@ -240,13 +235,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
                 <option value="갑I_고압B2">고압B 선택II</option>
               </optgroup>
               <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
-                <option value="갑II_고압A1" selected>고압A 선택I</option>
+                <option value="갑II_고압A1">고압A 선택I</option>
                 <option value="갑II_고압A2">고압A 선택II</option>
                 <option value="갑II_고압B1">고압B 선택I</option>
                 <option value="갑II_고압B2">고압B 선택II</option>
               </optgroup>
               <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
-                <option value="을_고압A1">고압A 선택I</option>
+                <option value="을_고압A1" selected>고압A 선택I</option>
                 <option value="을_고압A2">고압A 선택II</option>
                 <option value="을_고압A3">고압A 선택III</option>
                 <option value="을_고압B1">고압B 선택I</option>
@@ -547,21 +542,12 @@ function renderChart(){
   var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
-  /* 자가소비 밴드: kwh 곡선(위) ~ gen 곡선(아래), gen ≤ kwh 구간 */
-  var scBot=data.map(function(m,i){return[px(i),Math.max(pyG(m),pyC(m))];});
-  var scD=smooth(data.map(function(m,i){return[px(i),pyC(m)];}));
-  scD+=' L'+px(n-1).toFixed(1)+','+scBot[n-1][1].toFixed(1);
-  for(var _j=n-2;_j>=0;_j--) scD+=' L'+px(_j).toFixed(1)+','+scBot[_j][1].toFixed(1);
-  scD+=' Z';
-
-  /* 초과발전 밴드: gen 곡선(위) ~ kwh 곡선(아래), gen > kwh 구간 */
+  /* 초과발전 영역: gen > kwh 구간만 빨간색 */
   var exTop=data.map(function(m,i){return[px(i),m.gen>m.kwh?pyG(m):pyC(m)];});
   var exD=smooth(exTop);
   for(var _i=n-1;_i>=0;_i--) exD+=' L'+px(_i).toFixed(1)+','+pyC(data[_i]).toFixed(1);
   exD+=' Z';
-
-  var excess='<path d="'+scD+'" fill="rgba(93,168,122,.22)"/>'
-            +'<path d="'+exD+'" fill="rgba(220,80,80,.30)"/>';
+  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.30)"/>';
 
   data.forEach(function(m,i){
     var x=px(i);
@@ -572,8 +558,8 @@ function renderChart(){
 
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
-    +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.07)"/><stop offset="100%" stop-color="rgba(160,160,160,.01)"/></linearGradient>'
-    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.07)"/><stop offset="100%" stop-color="rgba(93,168,122,.01)"/></linearGradient>'
+    +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
+    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
@@ -879,11 +865,46 @@ function runSim(){
   }
   document.getElementById('r-year1').textContent=fmtM(years[0].sav);
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
-  document.getElementById('twenty-grid').innerHTML=years.map(function(y){
-    return '<div class="yr-cell"><div class="yr-num">'+y.year+'년차</div>'
-      +'<div class="yr-sav">'+fmtM(y.sav)+'</div>'
-      +'<div class="yr-cum">↑'+fmtM(y.cum)+'</div></div>';
-  }).join('');
+  /* ── 연도별 막대+누적선 차트 ── */
+  var maxSav=Math.max.apply(null,years.map(function(y){return Math.max(0,y.sav);}));
+  if(!maxSav)maxSav=1;
+  var maxCum=Math.max(1,years[19].cum);
+  var W=680,H=160,pL=56,pR=62,pT=28,pB=26,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/20,bW=gap*0.52;
+  var bars='',xLbls='',lAx='',rAx='',cPts=[],dots='';
+  /* 가이드라인 + 왼쪽 축(연간 절감) */
+  [0,0.5,1].forEach(function(r){
+    var y=pT+iH*(1-r);
+    lAx+='<text x="'+(pL-5)+'" y="'+(y+3.5)+'" text-anchor="end" fill="#6a6a6a" font-size="7.5">'+fmtM(maxSav*r)+'</text>';
+    lAx+='<line x1="'+pL+'" y1="'+y.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+y.toFixed(1)+'" stroke="#2e2e2e" stroke-width=".5" stroke-dasharray="'+(r>0?'3,3':'')+'" />';
+  });
+  /* 오른쪽 축(누적 절감) */
+  [0,0.5,1].forEach(function(r){
+    var y=pT+iH*(1-r);
+    rAx+='<text x="'+(W-pR+5)+'" y="'+(y+3.5)+'" text-anchor="start" fill="rgba(218,119,86,.85)" font-size="7.5">'+fmtM(maxCum*r)+'</text>';
+  });
+  /* 연간 막대 + 누적 포인트 */
+  years.forEach(function(yr,i){
+    var cx=pL+i*gap+gap/2;
+    var bH=yr.sav>0?(yr.sav/maxSav)*iH:0;
+    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+(pT+iH-bH).toFixed(1)+
+      '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
+      '" fill="rgba(93,168,122,.55)" rx="1.5"/>';
+    if((i+1)%5===0||i===0)
+      xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" fill="#6a6a6a" font-size="7.5">'+(i+1)+'년</text>';
+    var cy=pT+iH-(yr.cum/maxCum)*iH;
+    cPts.push([cx.toFixed(1),cy.toFixed(1)]);
+    dots+='<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="'+(i===19?3:1.6)+'" fill="#da7756" opacity="'+(i===19?'1':'.65')+'"/>';
+  });
+  var cumPath=smoothLine(cPts.map(function(p){return[parseFloat(p[0]),parseFloat(p[1])];}));
+  /* 20년 누적 표시 */
+  var lp=cPts[19];
+  var cum20Lbl='<text x="'+(W-pR-2)+'" y="'+(pT-10)+'" text-anchor="end" fill="#da7756" font-size="9" font-weight="700">누적 20년 '+fmtM(years[19].cum)+'</text>';
+  document.getElementById('twenty-grid').innerHTML=
+    '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
+    +cum20Lbl+lAx+rAx+bars
+    +'<path d="'+cumPath+'" fill="none" stroke="rgba(218,119,86,.75)" stroke-width="1.6"/>'
+    +dots+xLbls+'</svg>';
 }
 
 /* ── 초기화 ── */
