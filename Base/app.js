@@ -223,7 +223,7 @@ function fetchGHI(lat, lng, startYear, endYear) {
 
       Object.keys(daily).forEach(function (dateStr) {
         var v     = daily[dateStr];
-        if (v <= 2) return; /* GHI 유효값 필터 (PV_P.js 동일 로직) */
+        if (v < 0) return; /* NASA fill value(-999) 제외, 흐린날·장마·겨울 저일사 포함 */
         var month = parseInt(dateStr.slice(4, 6));
         if (!byMonth[month]) byMonth[month] = { sum: 0, cnt: 0 };
         byMonth[month].sum += v;
