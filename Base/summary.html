@@ -668,14 +668,14 @@ function renderDetailHeatmap(){
   Object.keys(seasonLines).forEach(function(sk){seasonLines[sk].forEach(function(v){allVals.push(v);});});
   var maxV=Math.max.apply(null,allVals)||1;
 
-  var W=680,H=120,pL=38,pR=12,pT=12,pB=20,iW=W-pL-pR,iH=H-pT-pB;
+  var W=680,H=140,pL=38,pR=12,pT=14,pB=20,iW=W-pL-pR,iH=H-pT-pB;
   function px(i){return pL+(i/11)*iW;}
   function py(v){return pT+iH-(v/maxV)*iH;}
 
   /* 업무시간대 배경 밴드 (8시~18시 = 블록4~8) */
   var band='<rect x="'+px(4).toFixed(1)+'" y="'+pT+'" width="'+(px(8)-px(4)).toFixed(1)+'" height="'+iH+'" fill="rgba(255,255,255,.025)" rx="2"/>';
 
-  var grid='',labels='',lines='';
+  var grid='',labels='',lines='',valLabels='';
   [0,.5,1].forEach(function(y){
     var yp=(pT+iH*(1-y)).toFixed(1);
     grid+='<text x="'+(pL-4)+'" y="'+(parseFloat(yp)+3)+'" text-anchor="end" fill="#5a5a5a" font-size="8">'+(Math.round(maxV*y/1000))+'k</text>';
@@ -685,20 +685,36 @@ function renderDetailHeatmap(){
     labels+='<text x="'+px(i).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#5a5a5a" font-size="8">'+l+'</text>';
   });
 
+  /* 라인 + 도트 먼저 */
   Object.keys(SEAS).forEach(function(sk){
     var pts=seasonLines[sk].map(function(v,i){return[px(i),py(v)];});
-    var line=smoothLine(pts);
-    lines+='<path d="'+line+'" fill="none" stroke="'+SEAS[sk].col+'" stroke-width="1.6"/>';
-    pts.forEach(function(p,i){
+    lines+='<path d="'+smoothLine(pts)+'" fill="none" stroke="'+SEAS[sk].col+'" stroke-width="1.6"/>';
+    pts.forEach(function(p){
       lines+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2" fill="'+SEAS[sk].col+'"/>';
-      var lY=(p[1]>pT+11)?p[1]-5:p[1]+9;
-      lines+='<text x="'+p[0].toFixed(1)+'" y="'+lY.toFixed(1)+'" text-anchor="middle" fill="'+SEAS[sk].col+'" font-size="6.5" opacity=".9">'+Math.round(seasonLines[sk][i])+'</text>';
     });
   });
 
+  /* 레이블: x 위치별로 3개 모아 y정렬 후 9px 간격 보장 */
+  var seasKeys=Object.keys(SEAS);
+  for(var xi=0;xi<12;xi++){
+    var xPos=px(xi);
+    var pts3=seasKeys.map(function(sk){
+      return{y:py(seasonLines[sk][xi]),v:Math.round(seasonLines[sk][xi]),col:SEAS[sk].col};
+    });
+    pts3.sort(function(a,b){return a.y-b.y;}); /* 위→아래 */
+    var placed=[];
+    pts3.forEach(function(p){
+      var ty=p.y-8; /* 기본: 도트 위 */
+      if(placed.length>0 && ty<placed[placed.length-1]+9) ty=placed[placed.length-1]+9;
+      ty=Math.max(pT+2, Math.min(H-pB-2, ty));
+      placed.push(ty);
+      valLabels+='<text x="'+xPos.toFixed(1)+'" y="'+ty.toFixed(1)+'" text-anchor="middle" fill="'+p.col+'" font-size="6.5" opacity=".9">'+p.v+'</text>';
+    });
+  }
+
   el.innerHTML='<div class="detail-title">시간대별 전력사용량 패턴 (계절별)</div>'
     +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
-    +band+grid+lines+labels+'</g></svg>'
+    +band+grid+lines+valLabels+labels+'</g></svg>'
     +'<div style="display:flex;gap:14px;margin-top:4px;font-size:10px;color:var(--tx4)">'
     +'<span><i style="display:inline-block;width:16px;height:2px;background:rgba(218,119,86,.85);vertical-align:middle;margin-right:4px"></i>여름</span>'
     +'<span><i style="display:inline-block;width:16px;height:2px;background:rgba(93,168,122,.85);vertical-align:middle;margin-right:4px"></i>봄·가을</span>'
