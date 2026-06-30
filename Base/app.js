@@ -1,13 +1,33 @@
-/* E-PPA app.js — 전력 데이터 파싱 + NASA API + 분석 네비게이션 */
+/* E-PPA app.js — 전력 데이터 파싱 + KMA/NASA MCP 보정 GHI + 분석 네비게이션 */
 
 'use strict';
 
 let parsedData = null; // { monthly, type }
+var _region = 'sudo'; // 'sudo' | 'nonsudo'
+
+/* KMA ASOS 2025 실측 + NASA 20년 장기평균 MCP 보정값 (kWh/m²/day, 월1~12)
+   수도권: 서울(108)·인천(112)·수원(119) 평균 → NASA 장기 × 보정계수
+   비수도권: 대전(143)·대구(133)·광주(156)·부산(159) 평균 → NASA 장기 × 보정계수 */
+var GHI_REGION = {
+  sudo:    [2.59, 3.50, 4.43, 5.24, 6.03, 5.63, 4.34, 4.52, 4.10, 3.63, 2.59, 2.16],
+  nonsudo: [2.80, 3.50, 4.57, 5.40, 5.89, 5.35, 4.49, 4.71, 4.06, 4.12, 2.92, 2.47]
+};
+
+function selectRegion(r) {
+  _region = r;
+  document.getElementById('btn-sudo').classList.toggle('active', r === 'sudo');
+  document.getElementById('btn-nonsudo').classList.toggle('active', r === 'nonsudo');
+}
+
+function getGHI() {
+  var vals = GHI_REGION[_region], ghi = {};
+  for (var m = 1; m <= 12; m++) ghi[m] = vals[m - 1];
+  return ghi;
+}
 
 /* ── 초기화 ── */
 document.addEventListener('DOMContentLoaded', function () {
   setupUpload();
-  document.getElementById('btn-location').addEventListener('click', useMyLocation);
   document.getElementById('btn-cta').addEventListener('click', runAnalysis);
 });
 
@@ -174,83 +194,11 @@ function onLoaded(filename, monthly) {
   cfg.style.display = 'flex';
 }
 
-/* ── 현재 위치 사용 ── */
-function useMyLocation() {
-  var btn = document.getElementById('btn-location');
-  btn.textContent = '위치 확인 중...';
-  btn.disabled = true;
-
-  if (!navigator.geolocation) {
-    alert('이 브라우저는 위치 정보를 지원하지 않습니다.');
-    btn.textContent = '현재 위치 사용';
-    btn.disabled = false;
-    return;
-  }
-
-  navigator.geolocation.getCurrentPosition(
-    function (pos) {
-      document.getElementById('inp-lat').value = pos.coords.latitude.toFixed(4);
-      document.getElementById('inp-lng').value = pos.coords.longitude.toFixed(4);
-      document.getElementById('loc-auto').style.display = 'inline';
-      btn.textContent = '위치 적용됨 ✓';
-      btn.disabled = false;
-    },
-    function (err) {
-      alert('위치 정보 오류: ' + err.message);
-      btn.textContent = '현재 위치 사용';
-      btn.disabled = false;
-    }
-  );
-}
-
-/* ── NASA POWER API — 월별 GHI 평균 ── */
-function fetchGHI(lat, lng, startYear, endYear) {
-  var start = startYear + '0101';
-  var end   = endYear   + '1231';
-  var url = 'https://power.larc.nasa.gov/api/temporal/daily/point'
-    + '?parameters=ALLSKY_SFC_SW_DWN&community=RE'
-    + '&longitude=' + lng + '&latitude=' + lat
-    + '&start=' + start + '&end=' + end + '&format=JSON';
-
-  return fetch(url)
-    .then(function (r) {
-      if (!r.ok) throw new Error('NASA API 오류 ' + r.status);
-      return r.json();
-    })
-    .then(function (data) {
-      var daily  = data.properties.parameter.ALLSKY_SFC_SW_DWN;
-      var byMonth = {};
-
-      Object.keys(daily).forEach(function (dateStr) {
-        var v     = daily[dateStr];
-        if (v < 0) return; /* NASA fill value(-999) 제외, 흐린날·장마·겨울 저일사 포함 */
-        var month = parseInt(dateStr.slice(4, 6));
-        if (!byMonth[month]) byMonth[month] = { sum: 0, cnt: 0 };
-        byMonth[month].sum += v;
-        byMonth[month].cnt++;
-      });
-
-      var ghi = {};
-      for (var m = 1; m <= 12; m++) {
-        ghi[m] = byMonth[m] ? byMonth[m].sum / byMonth[m].cnt : 3.5;
-      }
-      return ghi;
-    });
-}
-
 /* ── 월별 태양광 발전량 (kWh) ── */
 function calcSolar(cap, ghi, month, year) {
   var PR   = 0.82;
   var days = new Date(year, month, 0).getDate();
   return cap * ghi[month] * PR * days;
-}
-
-/* ── 로딩 상태 ── */
-function setLoading(on) {
-  document.getElementById('btn-cta').disabled     = on;
-  document.getElementById('btn-label').style.display   = on ? 'none'   : 'inline';
-  document.getElementById('btn-spinner').style.display = on ? 'inline' : 'none';
-  document.getElementById('btn-arrow').style.display   = on ? 'none'   : 'inline';
 }
 
 /* ── 메인 분석 실행 ── */
@@ -260,50 +208,35 @@ function runAnalysis() {
     return;
   }
 
-  var lat = parseFloat(document.getElementById('inp-lat').value);
-  var lng = parseFloat(document.getElementById('inp-lng').value);
   var cap = parseFloat(document.getElementById('inp-capacity').value);
   var ppa = parseFloat(document.getElementById('inp-ppa').value);
 
-  if (isNaN(lat) || isNaN(lng)) { alert('위치 좌표를 확인하세요.'); return; }
-  if (!cap || cap <= 0)         { alert('태양광 설치 용량을 입력하세요.'); return; }
-  if (!ppa || ppa <= 0)         { alert('PPA 단가를 입력하세요.'); return; }
+  if (!cap || cap <= 0) { alert('태양광 설치 용량을 입력하세요.'); return; }
+  if (!ppa || ppa <= 0) { alert('PPA 단가를 입력하세요.'); return; }
 
-  var tariff = parseFloat(document.getElementById('inp-tariff').value) || 0;
+  var tariff  = parseFloat(document.getElementById('inp-tariff').value) || 0;
+  var ghi     = getGHI();
+  var monthly = parsedData.monthly;
 
-  setLoading(true);
+  var enriched = monthly.map(function (m) {
+    var gen      = calcSolar(cap, ghi, m.month, m.year);
+    var eff      = Math.min(gen, m.kwh);
+    var selfRate = m.kwh > 0 ? eff / m.kwh : 0;
+    return {
+      year: m.year, month: m.month,
+      kwh: m.kwh, amount: m.amount,
+      gen: Math.round(gen),
+      eff: Math.round(eff),
+      selfRate: selfRate
+    };
+  });
 
-  var monthly    = parsedData.monthly;
-  var years      = monthly.map(function (m) { return m.year; });
-  var startYear  = Math.min.apply(null, years);
-  var endYear    = Math.max.apply(null, years);
+  localStorage.setItem('eppa_results', JSON.stringify({
+    monthly:     enriched,
+    params:      { region: _region, cap: cap, ppa: ppa, tariff: tariff, pr: 0.82 },
+    ghi:         ghi,
+    generatedAt: new Date().toISOString()
+  }));
 
-  fetchGHI(lat, lng, startYear, endYear)
-    .then(function (ghi) {
-      var enriched = monthly.map(function (m) {
-        var gen      = calcSolar(cap, ghi, m.month, m.year);
-        var eff      = Math.min(gen, m.kwh);
-        var selfRate = m.kwh > 0 ? eff / m.kwh : 0;
-        return {
-          year: m.year, month: m.month,
-          kwh: m.kwh, amount: m.amount,
-          gen: Math.round(gen),
-          eff: Math.round(eff),
-          selfRate: selfRate
-        };
-      });
-
-      localStorage.setItem('eppa_results', JSON.stringify({
-        monthly:     enriched,
-        params:      { lat: lat, lng: lng, cap: cap, ppa: ppa, tariff: tariff, pr: 0.82 },
-        ghi:         ghi,
-        generatedAt: new Date().toISOString()
-      }));
-
-      window.location.href = 'summary.html';
-    })
-    .catch(function (err) {
-      alert('NASA API 오류: ' + err.message + '\n\n인터넷 연결을 확인하거나 잠시 후 다시 시도하세요.');
-      setLoading(false);
-    });
+  window.location.href = 'summary.html';
 }

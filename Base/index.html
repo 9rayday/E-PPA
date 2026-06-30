@@ -84,17 +84,20 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .inp-field:focus{border-color:var(--orange)}
 .inp-field::placeholder{color:var(--tx4)}
 
-.btn-loc{height:34px;background:transparent;border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx3);font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:5px;transition:all .15s;width:100%}
-.btn-loc:hover{border-color:var(--tx3);color:var(--tx1)}
-
 /* CTA */
 .btn-cta{width:100%;height:52px;background:var(--orange);border:none;border-radius:var(--rs);color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:9px;transition:background .18s,transform .1s;letter-spacing:-.2px}
 .btn-cta:hover{background:var(--orange-lt)}
 .btn-cta:active{transform:scale(.98)}
 .btn-cta:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
 
-.spinner{width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .65s linear infinite;display:inline-block}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Region selector */
+.region-sel{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.region-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx3);font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;padding:11px 8px;transition:all .15s;display:flex;flex-direction:column;gap:2px;align-items:center;width:100%}
+.region-btn.active{border-color:var(--orange);color:var(--tx1);background:rgba(218,119,86,.08)}
+.region-sub{font-size:10px;font-weight:400;color:var(--tx4)}
+.region-btn.active .region-sub{color:var(--tx3)}
 
 /* Responsive */
 @media(max-width:900px){
@@ -176,23 +179,19 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
         <div class="cfg-sep"></div>
         <div class="cfg-title">분석 설정</div>
 
-        <div class="inp-row-2">
-          <div class="inp-row">
-            <div class="inp-label">위도<span class="inp-auto" id="loc-auto" style="display:none">자동</span></div>
-            <input class="inp-field" id="inp-lat" type="number" value="37.5665" step="0.0001">
-          </div>
-          <div class="inp-row">
-            <div class="inp-label">경도</div>
-            <input class="inp-field" id="inp-lng" type="number" value="126.9780" step="0.0001">
+        <div class="inp-row">
+          <div class="inp-label">설치 지역</div>
+          <div class="region-sel">
+            <button class="region-btn active" id="btn-sudo" onclick="selectRegion('sudo')">
+              수도권
+              <span class="region-sub">서울·인천·경기</span>
+            </button>
+            <button class="region-btn" id="btn-nonsudo" onclick="selectRegion('nonsudo')">
+              비수도권
+              <span class="region-sub">그 외 전국</span>
+            </button>
           </div>
         </div>
-
-        <button class="btn-loc" id="btn-location">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>
-          </svg>
-          현재 위치 사용
-        </button>
 
         <div class="inp-row">
           <div class="inp-label">태양광 설치 용량<span style="font-size:10px;color:var(--tx4)">kWp</span></div>
@@ -214,9 +213,8 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
       </div>
 
       <button class="btn-cta" id="btn-cta">
-        <span id="btn-label">PPA 분석하기</span>
-        <span id="btn-spinner" style="display:none"><span class="spinner"></span></span>
-        <svg id="btn-arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        PPA 분석하기
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 8h10M9 4l4 4-4 4"/>
         </svg>
       </button>
