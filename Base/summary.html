@@ -200,7 +200,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.45);border:1px solid rgba(93,168,122,.5)"></div>자가소비 구간</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>
         </div>
       </div>
@@ -542,12 +541,11 @@ function renderChart(){
   var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
-  /* 초과발전 영역: gen > kwh 구간만 빨간색 */
-  var exTop=data.map(function(m,i){return[px(i),m.gen>m.kwh?pyG(m):pyC(m)];});
-  var exD=smooth(exTop);
-  for(var _i=n-1;_i>=0;_i--) exD+=' L'+px(_i).toFixed(1)+','+pyC(data[_i]).toFixed(1);
-  exD+=' Z';
-  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.30)"/>';
+  /* 초과발전 영역: gLine(gen 앞방향) + 역방향 kwh smooth + evenodd → gen>kwh 구간만 정확히 채움 */
+  var revPts=[];
+  for(var _i=n-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
+  var exD=gLine+smooth(revPts).replace(/^M/,'L')+' Z';
+  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.28)" fill-rule="evenodd"/>';
 
   data.forEach(function(m,i){
     var x=px(i);
