@@ -232,38 +232,38 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <div class="form-label">한전 요금제 <span class="form-hint">산업용</span></div>
             <select class="sel-field" id="sel-tariff" onchange="onAssumptionChange()">
               <optgroup label="산업용(갑) I — 계절별 단일단가">
-                <option value="갑I_저압">저압 (기본 5,230원/kW)</option>
-                <option value="갑I_고압A1">고압A 선택I (5,550원/kW)</option>
-                <option value="갑I_고압A2">고압A 선택II (6,370원/kW)</option>
-                <option value="갑I_고압B1">고압B 선택I (5,550원/kW)</option>
-                <option value="갑I_고압B2">고압B 선택II (6,370원/kW)</option>
+                <option value="갑I_저압">저압</option>
+                <option value="갑I_고압A1">고압A 선택I</option>
+                <option value="갑I_고압A2">고압A 선택II</option>
+                <option value="갑I_고압B1">고압B 선택I</option>
+                <option value="갑I_고압B2">고압B 선택II</option>
               </optgroup>
               <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
-                <option value="갑II_고압A1" selected>고압A 선택I (6,090원/kW)</option>
-                <option value="갑II_고압A2">고압A 선택II (6,980원/kW)</option>
-                <option value="갑II_고압B1">고압B 선택I (6,090원/kW)</option>
-                <option value="갑II_고압B2">고압B 선택II (6,980원/kW)</option>
+                <option value="갑II_고압A1" selected>고압A 선택I</option>
+                <option value="갑II_고압A2">고압A 선택II</option>
+                <option value="갑II_고압B1">고압B 선택I</option>
+                <option value="갑II_고압B2">고압B 선택II</option>
               </optgroup>
               <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
-                <option value="을_고압A1">고압A 선택I (7,220원/kW)</option>
-                <option value="을_고압A2">고압A 선택II (8,320원/kW)</option>
-                <option value="을_고압A3">고압A 선택III (9,810원/kW)</option>
-                <option value="을_고압B1">고압B 선택I (6,630원/kW)</option>
-                <option value="을_고압B2">고압B 선택II (7,380원/kW)</option>
-                <option value="을_고압B3">고압B 선택III (8,190원/kW)</option>
+                <option value="을_고압A1">고압A 선택I</option>
+                <option value="을_고압A2">고압A 선택II</option>
+                <option value="을_고압A3">고압A 선택III</option>
+                <option value="을_고압B1">고압B 선택I</option>
+                <option value="을_고압B2">고압B 선택II</option>
+                <option value="을_고압B3">고압B 선택III</option>
               </optgroup>
             </select>
           </div>
           <div>
             <div class="form-label">계약전력 <span class="form-hint">kW</span></div>
-            <input class="inp-s" id="inp-contract" type="number" placeholder="예: 300" min="1" onchange="onAssumptionChange()">
+            <input class="inp-s" id="inp-contract" type="number" value="15000" min="1" onchange="onAssumptionChange()">
           </div>
           <div>
             <div class="form-label">한전 연간 상승률</div>
             <div class="slider-row">
-              <input type="range" id="sld-esc" min="0" max="7" step="0.5" value="3"
+              <input type="range" id="sld-esc" min="0" max="7" step="0.5" value="3.5"
                 oninput="document.getElementById('sld-val').textContent=parseFloat(this.value).toFixed(1)+'%';onAssumptionChange()">
-              <span class="slider-val" id="sld-val">3.0%</span>
+              <span class="slider-val" id="sld-val">3.5%</span>
             </div>
           </div>
         </div>
@@ -272,7 +272,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="sim-row sim-row-2">
           <div>
             <div class="form-label">PPA 단가 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-ppa" type="number" placeholder="예: 100" step="0.1" onchange="onAssumptionChange()">
+            <input class="inp-s" id="inp-ppa" type="number" value="185" step="0.1" onchange="onAssumptionChange()">
           </div>
           <div>
             <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
@@ -873,7 +873,6 @@ function runSim(){
 /* ── 초기화 ── */
 (function init(){
   var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
-  document.getElementById('inp-contract').value=15000;
   if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
   /* 설비용량: params 있으면 사용, 없으면 500kW 기본값 */
   var initCap=params.cap||500;
