@@ -57,9 +57,9 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 
 /* fn2 */
-#fn2{padding:10px 26px 14px;display:flex;flex-direction:column;gap:8px}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px}
+#fn2{padding:8px 26px 10px;display:flex;flex-direction:column;gap:6px}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px}
 .detail-card.wide{grid-column:1/-1}
 .detail-title{font-size:10px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .ami-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100px;gap:10px;color:var(--tx4);font-size:11px;text-align:center;line-height:1.7}
@@ -510,7 +510,7 @@ function renderChart(){
 function renderDetailMonthly(){
   var el=document.getElementById('dc-monthly');
   var maxK=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
-  var W=800,H=108,pL=44,pR=12,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
+  var W=800,H=90,pL=44,pR=12,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var n=monthly.length,gap=iW/n,bW=Math.max(4,gap*0.68);
   var bars='',labels='',grid='';
 
@@ -561,7 +561,7 @@ function renderDetailSeasonal(){
     return {name:SEAS[sk].name,avg:avg,peak:peak};
   });
   var maxV=Math.max.apply(null,groups.map(function(g){return g.peak;}));
-  var W=300,H=108,pL=36,pR=10,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
+  var W=300,H=90,pL=36,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/3,bW=30,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -605,7 +605,7 @@ function renderDetailDow(){
   var stats=DOW.map(function(){return{sum:0,cnt:0,peak:0};});
   daily.forEach(function(d){stats[d.dow].sum+=d.kwh;stats[d.dow].cnt++;stats[d.dow].peak=Math.max(stats[d.dow].peak,d.kwh);});
   var maxV=Math.max.apply(null,stats.map(function(s){return s.peak;}));
-  var W=300,H=108,pL=36,pR=10,pT=12,pB=18,iW=W-pL-pR,iH=H-pT-pB;
+  var W=300,H=90,pL=36,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/7,bW=18,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -657,7 +657,7 @@ function renderDetailHeatmap(){
   }
   var maxV=Math.max.apply(null,avgByH)||1;
 
-  var W=680,H=108,pL=38,pR=12,pT=18,pB=18,iW=W-pL-pR,iH=H-pT-pB;
+  var W=680,H=90,pL=38,pR=12,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/12,bW=gap*0.74;
   function bx(i){return pL+i*gap+(gap-bW)/2;}
 
