@@ -866,7 +866,7 @@ function runSim(){
   }
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
   /* ── 연도별 막대+선 차트 (음수 지원) ── */
-  /* ── 좌축: 연간 절감 (막대) / 우축: 누적 절감 (선) ── */
+  /* ── 연도별 차트: 막대(연간) + 누적 상승선 ── */
   var maxSav=Math.max.apply(null,years.map(function(y){return y.sav;}));
   var minSav=Math.min.apply(null,years.map(function(y){return y.sav;}));
   var posMax=Math.max(maxSav,0),negMin=Math.min(minSav,0);
@@ -877,69 +877,44 @@ function runSim(){
   var cumLo=Math.min(cumMin,0),cumHi=Math.max(years[19].cum,0);
   var cumRange=cumHi-cumLo||1;
 
-  var W=680,H=170,pL=54,pR=56,pT=24,pB=26,iW=W-pL-pR,iH=H-pT-pB;
-  var zeroY=pT+posMax/barRange*iH;          /* 좌축 0선 */
+  /* pT=44: 선 끝점(=pT) 위에 레이블 공간 확보 */
+  var W=680,H=210,pL=16,pR=16,pT=44,pB=28,iW=W-pL-pR,iH=H-pT-pB;
+  var zeroY=pT+posMax/barRange*iH;
   function barY(v){return zeroY-v/barRange*iH;}
   function cumY(v){return pT+iH-(v-cumLo)/cumRange*iH;}
 
-  var gap=iW/20,bW=gap*0.52;
-  var bars='',xLbls='',lAx='',rAx='',linePts=[];
+  var gap=iW/20,bW=gap*0.68;
+  var bars='',xLbls='',linePts=[];
 
-  /* 좌축 (연간) */
-  [negMin,0,posMax].filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(v){
-    var ay=barY(v);
-    lAx+='<text x="'+(pL-5)+'" y="'+(ay+3.5)+'" text-anchor="end" fill="'+(v===0?'#8a8a8a':'#6a6a6a')+'" font-size="7.5">'+fmtM(v)+'</text>';
-    lAx+='<line x1="'+pL+'" y1="'+ay.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+ay.toFixed(1)+
-      '" stroke="'+(v===0?'#5a5a5a':'#2e2e2e')+'" stroke-width="'+(v===0?'1':'.5')+
-      '" stroke-dasharray="'+(v===0?'':'3,3')+'"/>';
-  });
+  /* 0선 */
+  var zLine='<line x1="'+pL+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+zeroY.toFixed(1)+'" stroke="#3d4d5d" stroke-width="1.5"/>';
 
-  /* 우축 (누적): 상단=20년누적, 하단=최솟값 */
-  [[cumHi,pT],[cumLo,pT+iH]].filter(function(p){return p[0]!==cumHi||p[0]!==cumLo;}).forEach(function(p){
-    rAx+='<text x="'+(W-pR+5)+'" y="'+(p[1]+3.5)+'" text-anchor="start" fill="rgba(218,119,86,.75)" font-size="7.5">'+fmtM(p[0])+'</text>';
-  });
-  /* 누적 0선 (손익분기) */
-  if(cumLo<0&&cumHi>0){
-    var beY=cumY(0);
-    rAx+='<line x1="'+pL+'" y1="'+beY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+beY.toFixed(1)+'" stroke="rgba(218,119,86,.25)" stroke-width=".8" stroke-dasharray="4,4"/>';
-    rAx+='<text x="'+(W-pR+5)+'" y="'+(beY+3.5)+'" text-anchor="start" fill="rgba(218,119,86,.50)" font-size="7">손익분기</text>';
-  }
-
-  /* 막대 + 값 표시 */
   years.forEach(function(yr,i){
     var cx=pL+i*gap+gap/2;
     var isPos=yr.sav>=0;
     var bH=Math.abs(yr.sav)/barRange*iH;
     var topY=isPos?barY(yr.sav):zeroY;
+    /* 음수=주황, 양수=초록 */
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
-      '" fill="'+(isPos?'rgba(218,119,86,.72)':'rgba(210,70,70,.60)')+'" rx="1.5"/>';
-    var valTxt=fmtM(yr.sav);
-    if(bH>=24){
-      var my=(topY+bH/2).toFixed(1);
-      bars+='<text x="'+cx.toFixed(1)+'" y="'+my+
-        '" text-anchor="middle" dominant-baseline="central" fill="rgba(255,255,255,.90)" font-size="6.5"'+
-        ' transform="rotate(-90,'+cx.toFixed(1)+','+my+'">'+valTxt+'</text>';
-    } else if(bH>2){
-      bars+='<text x="'+cx.toFixed(1)+'" y="'+(isPos?(topY-3).toFixed(1):(topY+bH+9).toFixed(1))+
-        '" text-anchor="middle" fill="'+(isPos?'rgba(218,119,86,.9)':'rgba(210,70,70,.9)')+'" font-size="6.5">'+valTxt+'</text>';
-    }
+      '" fill="'+(isPos?'rgba(80,168,100,.85)':'rgba(218,119,86,.85)')+'" rx="2"/>';
     if((i+1)%5===0||i===0)
-      xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" fill="#6a6a6a" font-size="7.5">'+(i+1)+'년</text>';
+      xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="8">'+(i+1)+'년</text>';
     linePts.push([cx,cumY(yr.cum)]);
   });
 
-  var cumLine=smoothLine(linePts);
-  var lineDots=linePts.map(function(p,i){
-    return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+
-      '" r="'+(i===19?3:1.5)+'" fill="#da7756" opacity="'+(i===19?'1':'.55')+'"/>';
-  }).join('');
+  var cumLinePath=smoothLine(linePts);
+  /* 끝점(20년차) 강조 + 레이블 */
+  var lp=linePts[19];
+  var endDot='<circle cx="'+lp[0].toFixed(1)+'" cy="'+lp[1].toFixed(1)+'" r="4" fill="rgba(30,70,130,.85)"/>';
+  var cum20Lbl='<text x="'+lp[0].toFixed(1)+'" y="'+(lp[1]-11).toFixed(1)+
+    '" text-anchor="middle" fill="rgba(20,50,100,.90)" font-size="11" font-weight="700">'+fmtM(years[19].cum)+'</text>';
 
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
-    +lAx+rAx+bars
-    +'<path d="'+cumLine+'" fill="none" stroke="rgba(218,119,86,.85)" stroke-width="1.8"/>'
-    +lineDots+xLbls+'</svg>';
+    +zLine+bars
+    +'<path d="'+cumLinePath+'" fill="none" stroke="rgba(30,80,150,.65)" stroke-width="1.8"/>'
+    +endDot+cum20Lbl+xLbls+'</svg>';
 }
 
 /* ── 초기화 ── */
