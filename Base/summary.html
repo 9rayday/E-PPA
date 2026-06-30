@@ -417,7 +417,8 @@ var SAMPLE={
 
 var res=null;
 try{res=JSON.parse(localStorage.getItem('eppa_results'));}catch(e){}
-if(!res||!res.monthly||!res.monthly.length) res=SAMPLE;
+var isSample=!res||!res.monthly||!res.monthly.length;
+if(isSample) res=SAMPLE;
 
 var monthly=res.monthly;
 var effMonthly=monthly;
@@ -873,13 +874,15 @@ function runSim(){
 /* ── 초기화 ── */
 (function init(){
   var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
-  if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
-  /* 설비용량: params 있으면 사용, 없으면 500kW 기본값 */
-  var initCap=params.cap||500;
-  document.getElementById('inp-cap').value=initCap;
-  /* 발전시간: 실데이터 있으면 역산(h/day), 없으면 3.5h/day 기본값 */
-  var initH=(params.cap&&totalEff0>0)?Math.round(totalEff0/params.cap/365*10)/10:3.5;
-  document.getElementById('inp-hours').value=initH;
+  /* 실데이터일 때만 params 값으로 덮어씀 — 샘플 데이터는 HTML 기본값 유지 */
+  if(!isSample){
+    if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
+    if(params.cap){
+      document.getElementById('inp-cap').value=params.cap;
+      var initH=totalEff0>0?Math.round(totalEff0/params.cap/365*10)/10:3.5;
+      document.getElementById('inp-hours').value=initH;
+    }
+  }
   updateEffMonthly();
   renderMetrics();
   renderDetailMonthly();
