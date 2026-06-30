@@ -668,7 +668,8 @@ function renderDetailHeatmap(){
   for(var h=0;h<12;h++) totals.push(STACK.reduce(function(s,sk){return s+sData[sk.key][h];},0));
   var maxT=Math.max.apply(null,totals)||1;
 
-  var W=680,H=128,pL=38,pR=12,pT=12,pB=20,iW=W-pL-pR,iH=H-pT-pB;
+  /* pT=20: 상단 합계 레이블 공간 확보 */
+  var W=680,H=132,pL=38,pR=12,pT=20,pB=20,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/12,bW=gap*0.74;
   function bx(i){return pL+i*gap+(gap-bW)/2;}
 
@@ -689,14 +690,15 @@ function renderDetailHeatmap(){
       var v=sData[s.key][xi];
       var segH=(v/maxT)*iH,segY=curY-segH;
       bars+='<rect x="'+x.toFixed(1)+'" y="'+segY.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+segH.toFixed(1)+'" fill="'+s.col+'" rx="1"/>';
-      if(segH>12){
-        valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(segY+segH/2+3).toFixed(1)+'" text-anchor="middle" fill="rgba(255,255,255,.85)" font-size="7" font-weight="600">'+Math.round(v)+'</text>';
+      /* 세그먼트 높이 6px 이상이면 값 표시 */
+      if(segH>6){
+        valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(segY+segH/2+2.5).toFixed(1)+'" text-anchor="middle" fill="rgba(255,255,255,.88)" font-size="6" font-weight="600">'+Math.round(v)+'</text>';
       }
       curY=segY;
     });
-    /* 막대 상단 합계 */
+    /* 막대 상단 합계: 항상 막대 위에 (pT 여유 공간에 표시) */
     var topY=pT+iH-(totals[xi]/maxT)*iH;
-    valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(topY>pT+9?topY-4:topY+9).toFixed(1)+'" text-anchor="middle" fill="rgba(210,210,210,.6)" font-size="7">'+Math.round(totals[xi])+'</text>';
+    valLbls+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(topY-4).toFixed(1)+'" text-anchor="middle" fill="rgba(210,210,210,.65)" font-size="6.5">'+Math.round(totals[xi])+'</text>';
   }
 
   el.innerHTML='<div class="detail-title">시간대별 평균 전력사용량 (계절 누적)</div>'
