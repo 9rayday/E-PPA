@@ -737,7 +737,8 @@ function renderFeeTable(){
 
   /* PPA */
   var p1 =ppa*totalEff;
-  var p2b=netFeeBasic*Math.min(cap,contractKw)*12;
+  /* 기본요금: 요금적용전력(≈설비용량)이 계약전력 초과분에만 과금, 이하이면 0원 */
+  var p2b=netFeeBasic*Math.max(0,cap-contractKw)*12;
   var p2u=netFeeUsage*totalEff,p2=p2b+p2u;
   var p3 =feeTradeR*totalEff,p4=feeAdjR*totalEff;
   var pSub=p1+p2+p3+p4,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
@@ -766,7 +767,8 @@ function renderFeeTable(){
   body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (자급분 '+fmt(Math.round(totalEff/1000))+'MWh)</td></tr>';
   body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa+'원/kWh)</td><td>'+W(p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
-  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+Math.min(cap,contractKw)+'kW × 12)</td><td>'+W(p2b)+'</td></tr>';
+  var p2bKw=Math.max(0,cap-contractKw);
+  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+p2bKw+'kW 초과분 × 12'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
   body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage+'원/kWh)</td><td>'+W(p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
