@@ -178,7 +178,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(111,168,220,.45)"></div>초과발전 (잉여)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.7)"></div>초과발전 (잉여)</div>
         </div>
       </div>
     </section>
@@ -487,7 +487,7 @@ function renderChart(){
   data.forEach(function(m,i){
     var x=px(i);
     if(m.gen>m.kwh) excess+='<rect x="'+(x-segW/2).toFixed(1)+'" y="'+pyG(m).toFixed(1)+
-      '" width="'+segW.toFixed(1)+'" height="'+(pyC(m)-pyG(m)).toFixed(1)+'" fill="rgba(111,168,220,.18)" rx="2"/>';
+      '" width="'+segW.toFixed(1)+'" height="'+(pyC(m)-pyG(m)).toFixed(1)+'" fill="rgba(220,80,80,.22)" rx="2"/>';
     labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+m.month+'월</text>';
     dots+='<circle cx="'+x+'" cy="'+pyC(m).toFixed(1)+'" r="3" fill="rgba(160,160,160,.85)"/>';
     dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="3" fill="rgba(93,168,122,.9)"/>';
