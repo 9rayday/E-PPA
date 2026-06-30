@@ -872,16 +872,9 @@ function runSim(){
   var posMax=Math.max(maxSav,0),negMin=Math.min(minSav,0);
   var barRange=posMax-negMin||1;
 
-  var cumVals=years.map(function(y){return y.cum;});
-  var cumMin=Math.min.apply(null,cumVals);
-  var cumLo=Math.min(cumMin,0),cumHi=Math.max(years[19].cum,0);
-  var cumRange=cumHi-cumLo||1;
-
-  /* pT=44: 선 끝점(=pT) 위에 레이블 공간 확보 */
-  var W=680,H=210,pL=16,pR=16,pT=44,pB=28,iW=W-pL-pR,iH=H-pT-pB;
+  var W=680,H=210,pL=16,pR=16,pT=20,pB=28,iW=W-pL-pR,iH=H-pT-pB;
   var zeroY=pT+posMax/barRange*iH;
   function barY(v){return zeroY-v/barRange*iH;}
-  function cumY(v){return pT+iH-(v-cumLo)/cumRange*iH;}
 
   var gap=iW/20,bW=gap*0.68;
   var bars='',xLbls='',linePts=[];
@@ -900,21 +893,17 @@ function runSim(){
       '" fill="'+(isPos?'rgba(80,168,100,.85)':'rgba(218,119,86,.85)')+'" rx="2"/>';
     if((i+1)%5===0||i===0)
       xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="8">'+(i+1)+'년</text>';
-    linePts.push([cx,cumY(yr.cum)]);
+    /* 막대 끝점 연결 (양수=상단, 음수=하단) */
+    linePts.push([cx, barY(yr.sav)]);
   });
 
-  var cumLinePath=smoothLine(linePts);
-  /* 끝점(20년차) 강조 + 레이블 */
-  var lp=linePts[19];
-  var endDot='<circle cx="'+lp[0].toFixed(1)+'" cy="'+lp[1].toFixed(1)+'" r="4" fill="rgba(30,70,130,.85)"/>';
-  var cum20Lbl='<text x="'+lp[0].toFixed(1)+'" y="'+(lp[1]-11).toFixed(1)+
-    '" text-anchor="middle" fill="rgba(20,50,100,.90)" font-size="11" font-weight="700">'+fmtM(years[19].cum)+'</text>';
+  var trendLine=smoothLine(linePts);
 
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
     +zLine+bars
-    +'<path d="'+cumLinePath+'" fill="none" stroke="rgba(30,80,150,.65)" stroke-width="1.8"/>'
-    +endDot+cum20Lbl+xLbls+'</svg>';
+    +'<path d="'+trendLine+'" fill="none" stroke="rgba(30,80,150,.70)" stroke-width="1.8"/>'
+    +xLbls+'</svg>';
 }
 
 /* ── 초기화 ── */
