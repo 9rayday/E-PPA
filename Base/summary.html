@@ -56,6 +56,15 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx3)}
 .legend-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0}
 
+/* 전력개요 가정값 strip */
+.assumption-strip{display:flex;gap:0;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);flex-shrink:0;overflow:hidden}
+.assumption-field{display:flex;flex-direction:column;gap:3px;padding:10px 16px;border-right:1px solid var(--border);flex:1}
+.assumption-field:last-child{border-right:none}
+.assumption-field .field-label{font-size:10px;color:var(--tx4);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.assumption-field .inp-wrap{display:flex;align-items:center;gap:6px}
+.assumption-field .inp-wrap .inp-s{flex:1;min-width:0}
+.inp-unit{font-size:11px;color:var(--tx3);white-space:nowrap}
+
 /* fn2 */
 #fn2{padding:22px 26px 10px;display:flex;flex-direction:column;gap:6px}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -173,6 +182,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
     <!-- ① 전력 개요 -->
     <section id="fn1">
+      <div class="assumption-strip">
+        <div class="assumption-field">
+          <div class="field-label">설비용량</div>
+          <div class="inp-wrap">
+            <input class="inp-s" id="inp-cap" type="number" value="500" min="1" onchange="onAssumptionChange()">
+            <span class="inp-unit">kW</span>
+          </div>
+        </div>
+        <div class="assumption-field">
+          <div class="field-label">연평균 발전시간</div>
+          <div class="inp-wrap">
+            <input class="inp-s" id="inp-hours" type="number" value="3.5" step="0.1" min="0.1" onchange="onAssumptionChange()">
+            <span class="inp-unit">h/day</span>
+          </div>
+        </div>
+      </div>
       <div class="metrics" id="metric-cards"></div>
       <div class="chart-wrap">
         <div class="chart-title">월별 전력소비 vs 태양광 발전</div>
@@ -201,19 +226,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <!-- 가정값 입력 -->
       <div class="sim-section">
 
-        <!-- Row 1: 설비용량 / 연평균 발전시간 -->
-        <div class="sim-row sim-row-2">
-          <div>
-            <div class="form-label">설비용량 <span class="form-hint">kW</span></div>
-            <input class="inp-s" id="inp-cap" type="number" placeholder="예: 500" min="1" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">연평균 발전시간 <span class="form-hint">h/년</span></div>
-            <input class="inp-s" id="inp-hours" type="number" placeholder="예: 1200" step="10" onchange="onAssumptionChange()">
-          </div>
-        </div>
-
-        <!-- Row 2: 한전요금제 / 계약전력 / 상승률 -->
+        <!-- Row 1: 한전요금제 / 계약전력 / 상승률 -->
         <div class="sim-row sim-row-3">
           <div>
             <div class="form-label">한전 요금제 <span class="form-hint">산업용</span></div>
@@ -455,7 +468,7 @@ function updateEffMonthly(){
   var c=parseFloat(document.getElementById('inp-cap').value)||0;
   var h=parseFloat(document.getElementById('inp-hours').value)||0;
   if(c>0&&h>0){
-    var newAnn=c*h;
+    var newAnn=c*h*365; /* h/day × 365 → kWh/년 */
     var orig=monthly.reduce(function(s,m){return s+m.eff;},0);
     var sc=orig>0?newAnn/orig:1;
     effMonthly=monthly.map(function(m){
@@ -759,7 +772,9 @@ function renderFeeTable(){
   var kEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
   var kClim  =climate*totalKwh,kFuel=fuel*totalKwh;
   var kSub   =kBasic+kEnergy+kClim+kFuel;
-  var kVat   =kSub*0.10,kFund=kSub*0.027,kTotal=kSub+kVat+kFund;
+  var kVat   =Math.round(kSub*0.10/10)*10;       /* 원미만 4사5입 → 10원 단위 반올림 */
+  var kFund  =Math.floor(kSub*0.027/10)*10;       /* 10원 미만 절사 */
+  var kTotal =kSub+kVat+kFund;
 
   /* PPA */
   var p1 =ppa*totalEff;
@@ -774,28 +789,30 @@ function renderFeeTable(){
   var rEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*(m.kwh-m.eff);},0);
   var rClim  =climate*remainKwh,rFuel=fuel*remainKwh;
   var rSub   =rBasic+rEnergy+rClim+rFuel;
-  var rVat   =rSub*0.10,rFund=rSub*0.027,rTotal=rSub+rVat+rFund;
+  var rVat   =Math.round(rSub*0.10/10)*10;
+  var rFund  =Math.floor(rSub*0.027/10)*10;
+  var rTotal =rSub+rVat+rFund;
 
   var totalCost=pTotal+rTotal,savings=kTotal-totalCost;
   function W(n){return fmt(Math.round(n));}
 
   var body='<tbody>';
   body+='<tr class="section-row"><td colspan="2">① 한전 전기요금 전체 (PPA 미도입 기준)</td></tr>';
-  body+='<tr><td style="padding-left:22px">기본요금 ('+tariff.basicRate.toLocaleString()+'원/kW × '+contractKw+'kW × 12)</td><td>'+W(kBasic)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력량 요금</td><td>'+W(kEnergy)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">기후환경요금 ('+climate+'원/kWh)</td><td>'+W(kClim)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">연료비조정요금 ('+fuel+'원/kWh)</td><td>'+W(kFuel)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">부가가치세 10%</td><td>'+W(kVat)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력산업기반기금 2.7%</td><td>'+W(kFund)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기본요금 ('+tariff.basicRate.toLocaleString('ko-KR')+'원/kW × '+contractKw.toLocaleString('ko-KR')+'kW × 12개월)</td><td>'+W(kBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력량 요금 <span style="color:var(--tx4);font-size:10px">(TOU: 경부하 20% · 중간 45% · 최대 35% 추정)</span></td><td>'+W(kEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기후환경요금 ('+climate+'원/kWh × '+fmt(totalKwh)+'kWh)</td><td>'+W(kClim)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">연료비조정요금 ('+fuel+'원/kWh × '+fmt(totalKwh)+'kWh)</td><td>'+W(kFuel)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">부가가치세 10% <span style="color:var(--tx4);font-size:10px">(원미만 4사5입)</span></td><td>'+W(kVat)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력산업기반기금 2.7% <span style="color:var(--tx4);font-size:10px">(10원미만 절사)</span></td><td>'+W(kFund)+'</td></tr>';
   body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(kTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
-  body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (자급분 '+fmt(Math.round(totalEff/1000))+'MWh)</td></tr>';
-  body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa+'원/kWh)</td><td>'+W(p1)+'</td></tr>';
+  body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (자급분 '+fmt(totalEff)+'kWh / '+(totalEff/1000).toFixed(1)+'MWh)</td></tr>';
+  body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
   var p2bKw=Math.max(0,cap-contractKw);
-  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+p2bKw+'kW 초과분 × 12'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
-  body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage+'원/kWh)</td><td>'+W(p2u)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+feeAdjR+'원/kWh)</td><td>'+W(p4)+'</td></tr>';
@@ -855,14 +872,15 @@ function runSim(){
 
 /* ── 초기화 ── */
 (function init(){
-  var maxKwh=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
   var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
-  document.getElementById('inp-contract').value=Math.round(maxKwh/(720*0.6)/10)*10||'';
+  document.getElementById('inp-contract').value=15000;
   if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
-  if(params.cap){
-    document.getElementById('inp-cap').value=params.cap;
-    document.getElementById('inp-hours').value=params.cap?Math.round(totalEff0/params.cap):'';
-  }
+  /* 설비용량: params 있으면 사용, 없으면 500kW 기본값 */
+  var initCap=params.cap||500;
+  document.getElementById('inp-cap').value=initCap;
+  /* 발전시간: 실데이터 있으면 역산(h/day), 없으면 3.5h/day 기본값 */
+  var initH=(params.cap&&totalEff0>0)?Math.round(totalEff0/params.cap/365*10)/10:3.5;
+  document.getElementById('inp-hours').value=initH;
   updateEffMonthly();
   renderMetrics();
   renderDetailMonthly();
