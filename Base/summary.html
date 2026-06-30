@@ -66,9 +66,10 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
 /* fn3 */
 #fn3{padding:22px 26px;display:flex;flex-direction:column;gap:14px}
-.sim-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
-.sim-grid .span2{grid-column:span 2}
-.sim-grid .span3{grid-column:span 3}
+.sim-section{display:flex;flex-direction:column;gap:8px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
+.sim-row{display:grid;gap:8px}
+.sim-row-2{grid-template-columns:1fr 1fr}
+.sim-row-3{grid-template-columns:1fr 1fr 1fr}
 .form-label{font-size:11px;color:var(--tx3);margin-bottom:4px;display:flex;justify-content:space-between}
 .form-hint{font-size:10px;color:var(--tx4)}
 .sel-field,.inp-s{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);color:var(--tx1);font-size:12px;padding:7px 10px;outline:none;width:100%;font-family:inherit;transition:border-color .15s}
@@ -197,75 +198,96 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <section id="fn3" style="display:none">
 
       <!-- 가정값 입력 -->
-      <div class="sim-grid">
-        <div class="span2">
-          <div class="form-label">한전 요금제 <span class="form-hint">산업용</span></div>
-          <select class="sel-field" id="sel-tariff" onchange="onAssumptionChange()">
-            <optgroup label="산업용(갑) I — 계절별 단일단가">
-              <option value="갑I_저압">저압 (기본 5,230원/kW)</option>
-              <option value="갑I_고압A1">고압A 선택I (5,550원/kW)</option>
-              <option value="갑I_고압A2">고압A 선택II (6,370원/kW)</option>
-              <option value="갑I_고압B1">고압B 선택I (5,550원/kW)</option>
-              <option value="갑I_고압B2">고압B 선택II (6,370원/kW)</option>
-            </optgroup>
-            <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
-              <option value="갑II_고압A1" selected>고압A 선택I (6,090원/kW)</option>
-              <option value="갑II_고압A2">고압A 선택II (6,980원/kW)</option>
-              <option value="갑II_고압B1">고압B 선택I (6,090원/kW)</option>
-              <option value="갑II_고압B2">고압B 선택II (6,980원/kW)</option>
-            </optgroup>
-            <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
-              <option value="을_고압A1">고압A 선택I (7,220원/kW)</option>
-              <option value="을_고압A2">고압A 선택II (8,320원/kW)</option>
-              <option value="을_고압A3">고압A 선택III (9,810원/kW)</option>
-              <option value="을_고압B1">고압B 선택I (6,630원/kW)</option>
-              <option value="을_고압B2">고압B 선택II (7,380원/kW)</option>
-              <option value="을_고압B3">고압B 선택III (8,190원/kW)</option>
-            </optgroup>
-          </select>
-        </div>
-        <div>
-          <div class="form-label">계약전력 <span class="form-hint">kW</span></div>
-          <input class="inp-s" id="inp-contract" type="number" placeholder="예: 300" min="1" onchange="onAssumptionChange()">
-        </div>
-        <div>
-          <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
-          <input class="inp-s" id="inp-climate" type="number" value="10" step="0.1" onchange="onAssumptionChange()">
-        </div>
-        <div>
-          <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
-          <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
-        </div>
-        <div>
-          <div class="form-label">망이용료 기본요금 <span class="form-hint">원/kW·월</span></div>
-          <input class="inp-s" id="inp-netfee-basic" type="number" value="2000" step="100" onchange="onAssumptionChange()">
-        </div>
-        <div class="span2">
-          <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
-          <select class="sel-field" id="sel-netfee" onchange="onAssumptionChange()">
-            <option value="3.05">유형③④ 배전고압 동일변전소 (3.05원/kWh)</option>
-            <option value="5.49">유형⑦⑧ 다른변전소·수도권 (5.49원/kWh)</option>
-            <option value="4.47">유형⑦⑧ 다른변전소·비수도권 (4.47원/kWh)</option>
-            <option value="2.44">유형①② 송전발전·수도권 (2.44원/kWh)</option>
-            <option value="1.42">유형①② 송전발전·비수도권 (1.42원/kWh)</option>
-          </select>
-        </div>
-        <div>
-          <div class="form-label">거래수수료 <span class="form-hint">원/kWh</span></div>
-          <input class="inp-s" id="inp-fee-trade" type="number" value="1.0" step="0.1" onchange="onAssumptionChange()">
-        </div>
-        <div>
-          <div class="form-label">부가정산금 (SMP 조정) <span class="form-hint">원/kWh</span></div>
-          <input class="inp-s" id="inp-fee-adj" type="number" value="0" step="0.1" onchange="onAssumptionChange()">
-        </div>
-        <div>
-          <div class="form-label">KEPCO 연간 상승률</div>
-          <div class="slider-row">
-            <input type="range" id="sld-esc" min="0" max="7" step="0.5" value="3"
-              oninput="document.getElementById('sld-val').textContent=parseFloat(this.value).toFixed(1)+'%';onAssumptionChange()">
-            <span class="slider-val" id="sld-val">3.0%</span>
+      <div class="sim-section">
+
+        <!-- Row 1: 설비용량 / 발전시간 -->
+        <div class="sim-row sim-row-2">
+          <div>
+            <div class="form-label">설비용량 <span class="form-hint">kW</span></div>
+            <input class="inp-s" id="inp-cap" type="number" placeholder="예: 500" min="1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">연간 발전시간 <span class="form-hint">시간/년</span></div>
+            <input class="inp-s" id="inp-hours" type="number" placeholder="예: 1200" step="10" onchange="onAssumptionChange()">
           </div>
         </div>
+
+        <!-- Row 2: 한전요금제 / 계약전력 / 상승률 -->
+        <div class="sim-row sim-row-3">
+          <div>
+            <div class="form-label">한전 요금제 <span class="form-hint">산업용</span></div>
+            <select class="sel-field" id="sel-tariff" onchange="onAssumptionChange()">
+              <optgroup label="산업용(갑) I — 계절별 단일단가">
+                <option value="갑I_저압">저압 (기본 5,230원/kW)</option>
+                <option value="갑I_고압A1">고압A 선택I (5,550원/kW)</option>
+                <option value="갑I_고압A2">고압A 선택II (6,370원/kW)</option>
+                <option value="갑I_고압B1">고압B 선택I (5,550원/kW)</option>
+                <option value="갑I_고압B2">고압B 선택II (6,370원/kW)</option>
+              </optgroup>
+              <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
+                <option value="갑II_고압A1" selected>고압A 선택I (6,090원/kW)</option>
+                <option value="갑II_고압A2">고압A 선택II (6,980원/kW)</option>
+                <option value="갑II_고압B1">고압B 선택I (6,090원/kW)</option>
+                <option value="갑II_고압B2">고압B 선택II (6,980원/kW)</option>
+              </optgroup>
+              <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
+                <option value="을_고압A1">고압A 선택I (7,220원/kW)</option>
+                <option value="을_고압A2">고압A 선택II (8,320원/kW)</option>
+                <option value="을_고압A3">고압A 선택III (9,810원/kW)</option>
+                <option value="을_고압B1">고압B 선택I (6,630원/kW)</option>
+                <option value="을_고압B2">고압B 선택II (7,380원/kW)</option>
+                <option value="을_고압B3">고압B 선택III (8,190원/kW)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">계약전력 <span class="form-hint">kW</span></div>
+            <input class="inp-s" id="inp-contract" type="number" placeholder="예: 300" min="1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">한전 연간 상승률</div>
+            <div class="slider-row">
+              <input type="range" id="sld-esc" min="0" max="7" step="0.5" value="3"
+                oninput="document.getElementById('sld-val').textContent=parseFloat(this.value).toFixed(1)+'%';onAssumptionChange()">
+              <span class="slider-val" id="sld-val">3.0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Row 3: 기후환경요금 / 연료비조정 -->
+        <div class="sim-row sim-row-2">
+          <div>
+            <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-climate" type="number" value="9" step="0.1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
+          </div>
+        </div>
+
+        <!-- Row 4: 망이용료 / 거래수수료 / 부가정산금 -->
+        <div class="sim-row sim-row-3">
+          <div>
+            <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
+            <select class="sel-field" id="sel-netfee" onchange="onAssumptionChange()">
+              <option value="3.05">유형③④ 배전고압 동일변전소 (3.05원/kWh)</option>
+              <option value="5.49">유형⑦⑧ 다른변전소·수도권 (5.49원/kWh)</option>
+              <option value="4.47">유형⑦⑧ 다른변전소·비수도권 (4.47원/kWh)</option>
+              <option value="2.44">유형①② 송전발전·수도권 (2.44원/kWh)</option>
+              <option value="1.42">유형①② 송전발전·비수도권 (1.42원/kWh)</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">거래수수료 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fee-trade" type="number" value="0.1193" step="0.001" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fee-adj" type="number" value="10.22" step="0.01" onchange="onAssumptionChange()">
+          </div>
+        </div>
+
       </div>
 
       <!-- 요금 비교 테이블 -->
@@ -694,12 +716,13 @@ function renderFeeTable(){
   var tariff     =KEPCO[document.getElementById('sel-tariff').value];
   var contractKw =parseFloat(document.getElementById('inp-contract').value)||0;
   var netFeeUsage=parseFloat(document.getElementById('sel-netfee').value);
-  var netFeeBasic=parseFloat(document.getElementById('inp-netfee-basic').value)||2000;
-  var climate    =parseFloat(document.getElementById('inp-climate').value)||10;
+  var netFeeBasic=2000; /* 망이용료 기본요금 고정 2,000원/kW·월 */
+  var climate    =parseFloat(document.getElementById('inp-climate').value)||9;
   var fuel       =parseFloat(document.getElementById('inp-fuel').value)||5;
-  var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||1.0;
-  var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||0;
-  var ppa=params.ppa,cap=params.cap;
+  var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
+  var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
+  var ppa=params.ppa;
+  var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
 
   var totalKwh=monthly.reduce(function(s,m){return s+m.kwh;},0);
   var totalEff=monthly.reduce(function(s,m){return s+m.eff;},0);
@@ -710,21 +733,21 @@ function renderFeeTable(){
   var kEnergy=monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
   var kClim  =climate*totalKwh,kFuel=fuel*totalKwh;
   var kSub   =kBasic+kEnergy+kClim+kFuel;
-  var kVat   =kSub*0.10,kFund=kSub*0.037,kTotal=kSub+kVat+kFund;
+  var kVat   =kSub*0.10,kFund=kSub*0.027,kTotal=kSub+kVat+kFund;
 
   /* PPA */
   var p1 =ppa*totalEff;
   var p2b=netFeeBasic*Math.min(cap,contractKw)*12;
   var p2u=netFeeUsage*totalEff,p2=p2b+p2u;
   var p3 =feeTradeR*totalEff,p4=feeAdjR*totalEff;
-  var pSub=p1+p2+p3+p4,p5=pSub*0.10,p6=pSub*0.037,pTotal=pSub+p5+p6;
+  var pSub=p1+p2+p3+p4,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
 
   /* 한전 잔여 */
   var rBasic =kBasic;
   var rEnergy=monthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*(m.kwh-m.eff);},0);
   var rClim  =climate*remainKwh,rFuel=fuel*remainKwh;
   var rSub   =rBasic+rEnergy+rClim+rFuel;
-  var rVat   =rSub*0.10,rFund=rSub*0.037,rTotal=rSub+rVat+rFund;
+  var rVat   =rSub*0.10,rFund=rSub*0.027,rTotal=rSub+rVat+rFund;
 
   var totalCost=pTotal+rTotal,savings=kTotal-totalCost;
   function W(n){return fmt(Math.round(n));}
@@ -736,21 +759,21 @@ function renderFeeTable(){
   body+='<tr><td style="padding-left:22px">기후환경요금 ('+climate+'원/kWh)</td><td>'+W(kClim)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">연료비조정요금 ('+fuel+'원/kWh)</td><td>'+W(kFuel)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">부가가치세 10%</td><td>'+W(kVat)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력산업기반기금 3.7%</td><td>'+W(kFund)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력산업기반기금 2.7%</td><td>'+W(kFund)+'</td></tr>';
   body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(kTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
   body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (자급분 '+fmt(Math.round(totalEff/1000))+'MWh)</td></tr>';
   body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa+'원/kWh)</td><td>'+W(p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
-  body+='<tr><td style="padding-left:38px">기본요금 ('+netFeeBasic+'원/kW·월 × '+Math.min(cap,contractKw)+'kW × 12)</td><td>'+W(p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+Math.min(cap,contractKw)+'kW × 12)</td><td>'+W(p2b)+'</td></tr>';
   body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage+'원/kWh)</td><td>'+W(p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+feeAdjR+'원/kWh)</td><td>'+W(p4)+'</td></tr>';
   body+='<tr style="background:var(--bg3)"><td style="color:var(--tx4);font-size:10px;padding-left:22px">PPA 소계 (세전)</td><td style="color:var(--tx4)">'+W(pSub)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">⑤ 부가가치세 10%</td><td>'+W(p5)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">⑥ 전력산업기반기금 3.7%</td><td>'+W(p6)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">⑥ 전력산업기반기금 2.7%</td><td>'+W(p6)+'</td></tr>';
   body+='<tr class="total-row"><td>PPA 합계</td><td>'+W(pTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
@@ -778,8 +801,8 @@ function runSim(){
   var netFee =parseFloat(document.getElementById('sel-netfee').value);
   var climate=parseFloat(document.getElementById('inp-climate').value)||10;
   var fuel   =parseFloat(document.getElementById('inp-fuel').value)||5;
-  var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||1.0;
-  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||0;
+  var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
+  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
   var ppa=params.ppa,cum=0,years=[];
 
@@ -805,7 +828,12 @@ function runSim(){
 /* ── 초기화 ── */
 (function init(){
   var maxKwh=Math.max.apply(null,monthly.map(function(m){return m.kwh;}));
+  var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
   document.getElementById('inp-contract').value=Math.round(maxKwh/(720*0.6)/10)*10||'';
+  if(params.cap){
+    document.getElementById('inp-cap').value=params.cap;
+    document.getElementById('inp-hours').value=params.cap?Math.round(totalEff0/params.cap):'';
+  }
   renderMetrics();
   renderDetailMonthly();
   renderDetailSeasonal();
