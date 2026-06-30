@@ -102,20 +102,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .fee-tbl tr:last-child td{border-bottom:none}
 .fee-tbl .sep-row td{background:var(--bg);height:6px;padding:0;border-bottom:none}
 .fee-tbl .section-row td{background:var(--bg3);font-weight:600;color:var(--tx2);font-family:'Noto Sans KR',sans-serif;font-size:11px}
-.fee-tbl .total-row td{background:rgba(93,168,122,.06);font-weight:700;color:var(--green)}
-.fee-tbl .total-row td:first-child{color:var(--green)}
-.fee-tbl .sav-row td{background:rgba(93,168,122,.08)}
-.fee-tbl .sav-row td:first-child{color:var(--green);font-weight:700}
-.fee-tbl .sav-row td:last-child{color:var(--green);font-size:15px;font-weight:700}
+.fee-tbl .total-row td{background:rgba(218,119,86,.06);font-weight:700;color:var(--orange)}
+.fee-tbl .total-row td:first-child{color:var(--orange)}
+.fee-tbl .sav-row td{background:rgba(218,119,86,.10)}
+.fee-tbl .sav-row td:first-child{color:var(--orange);font-weight:700}
+.fee-tbl .sav-row td:last-child{color:var(--orange);font-size:15px;font-weight:700}
 
-/* result cards + 20y grid */
-.result-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.res-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:16px 18px;text-align:center}
-.res-card.highlight{border-color:var(--orange);background:rgba(218,119,86,.07)}
-.res-label{font-size:10px;color:var(--tx4);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
-.res-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
-.res-value.pos{color:var(--green)}
-.res-sub{font-size:10px;color:var(--tx4);margin-top:5px}
+/* 20y grid */
 .grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-top:14px;margin-bottom:6px}
 .twenty-grid{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
 
@@ -132,7 +125,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 }
 @media(max-width:600px){
   .metrics{grid-template-columns:1fr}
-  .result-cards{grid-template-columns:1fr}
   .sim-grid{grid-template-columns:1fr}
   .sim-grid .span2,.sim-grid .span3{grid-column:auto}
 }
@@ -272,11 +264,21 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div>
             <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
             <select class="sel-field" id="sel-netfee" onchange="onAssumptionChange()">
-              <option value="3.05">유형③④ 배전고압 동일변전소 (3.05원/kWh)</option>
-              <option value="5.49">유형⑦⑧ 다른변전소·수도권 (5.49원/kWh)</option>
-              <option value="4.47">유형⑦⑧ 다른변전소·비수도권 (4.47원/kWh)</option>
-              <option value="2.44">유형①② 송전발전·수도권 (2.44원/kWh)</option>
-              <option value="1.42">유형①② 송전발전·비수도권 (1.42원/kWh)</option>
+              <optgroup label="배전 발전 → 배전고압 사용자">
+                <option value="3.05">③④ 동일 변전소내 배전고압 (3.05원/kWh)</option>
+                <option value="5.49">⑦⑧ 다른 변전소 · 수도권 (5.49원/kWh)</option>
+                <option value="4.47">⑦⑧ 다른 변전소 · 비수도권 (4.47원/kWh)</option>
+              </optgroup>
+              <optgroup label="배전 발전 → 송전 사용자">
+                <option value="2.44">⑤⑥ 수도권 (2.44원/kWh)</option>
+                <option value="1.42">⑤⑥ 비수도권 (1.42원/kWh)</option>
+              </optgroup>
+              <optgroup label="송전 발전 → 사용자">
+                <option value="2.44">① 송전발전 → 송전사용자 · 수도권 (2.44원/kWh)</option>
+                <option value="1.42">① 송전발전 → 송전사용자 · 비수도권 (1.42원/kWh)</option>
+                <option value="5.49">② 송전발전 → 배전고압사용자 · 수도권 (5.49원/kWh)</option>
+                <option value="4.47">② 송전발전 → 배전고압사용자 · 비수도권 (4.47원/kWh)</option>
+              </optgroup>
             </select>
           </div>
         </div>
@@ -309,20 +311,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <div class="sep"></div>
 
       <!-- 20년 시뮬레이션 결과 -->
-      <div class="result-cards">
-        <div class="res-card">
-          <div class="res-label">1차년 연간 절감액</div>
-          <div class="res-value pos" id="r-year1">—</div>
-          <div class="res-sub">VAT 포함</div>
-        </div>
-        <div class="res-card highlight">
-          <div class="res-label">20년 누적 절감액</div>
-          <div class="res-value pos" id="r-cum20">—</div>
-          <div class="res-sub">상승률 반영</div>
-        </div>
-      </div>
-
-      <div class="grid-title">연도별 절감 현황</div>
+      <div class="grid-title">연도별 절감 현황 <span id="r-cum20" style="float:right;color:var(--orange);font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-.3px">—</span></div>
       <div class="twenty-grid" id="twenty-grid"></div>
 
     </section>
@@ -865,8 +854,7 @@ function runSim(){
     });
     cum+=ann;years.push({year:y,sav:ann,cum:cum});
   }
-  document.getElementById('r-year1').textContent=fmtM(years[0].sav);
-  document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
+  document.getElementById('r-cum20').textContent='20년 누적 '+fmtM(years[19].cum);
   /* ── 연도별 막대+선 차트 (선 = 막대 상단 연결, 동일 Y축) ── */
   var maxSav=Math.max.apply(null,years.map(function(y){return Math.max(0,y.sav);}));
   if(!maxSav)maxSav=1;
