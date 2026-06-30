@@ -541,11 +541,14 @@ function renderChart(){
   var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
-  /* 초과발전 영역: gLine(gen 앞방향) + 역방향 kwh smooth + evenodd → gen>kwh 구간만 정확히 채움 */
+  /* 초과발전 영역: gen fill을 "kwh 곡선 위쪽" clipPath로 마스킹
+     → gen > kwh인 구간만 정확히 빨간색, 전기사용량 > gen인 구간 절대 포함 안 됨 */
   var revPts=[];
   for(var _i=n-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
-  var exD=gLine+smooth(revPts).replace(/^M/,'L')+' Z';
-  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.28)" fill-rule="evenodd"/>';
+  /* clipPath 영역: 차트 상단 ~ kwh 곡선까지 (= kwh 곡선 위쪽) */
+  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smooth(revPts).replace(/^M/,'L')+' Z';
+  /* 빨간 영역: gen fill 전체를 clipPath로 자름 → kwh 위로 튀어나온 gen만 표시 */
+  var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
 
   data.forEach(function(m,i){
     var x=px(i);
@@ -558,10 +561,11 @@ function renderChart(){
     +'<defs>'
     +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
     +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'<clipPath id="ex-clip"><path d="'+clipD+'"/></clipPath>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
-    +excess
+    +'<path d="'+genAreaD+'" fill="rgba(220,80,80,.30)" clip-path="url(#ex-clip)"/>'
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
     +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
