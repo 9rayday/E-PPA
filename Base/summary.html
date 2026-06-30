@@ -531,6 +531,8 @@ function renderDetailMonthly(){
     var op=(0.3+0.55*(m.kwh/maxK)).toFixed(2);
     bars+='<rect x="'+x.toFixed(1)+'" y="'+by.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
       '" fill="rgba(180,180,180,'+op+')" rx="2"/>';
+    var lY=(by>pT+11)?by-4:by+9;
+    bars+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+lY.toFixed(1)+'" text-anchor="middle" fill="rgba(210,210,210,.75)" font-size="7.5">'+Math.round(m.kwh/1000)+'k</text>';
     labels+='<text x="'+(x+bW/2).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#5a5a5a" font-size="8">'+m.month+'월</text>';
     linePts.push([x+bW/2,by]);
   });
@@ -573,6 +575,8 @@ function renderDetailSeasonal(){
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="rgba(180,180,180,.2)" rx="2"/>';
     var aH=(g.avg/maxV)*iH,ay=pT+iH-aH;
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="rgba(180,180,180,.7)" rx="2"/>';
+    var lY=(ay>pT+11)?ay-4:ay+9;
+    bars+='<text x="'+cx+'" y="'+lY.toFixed(1)+'" text-anchor="middle" fill="rgba(210,210,210,.75)" font-size="7.5">'+Math.round(g.avg/1000)+'k</text>';
     labels+='<text x="'+cx+'" y="'+(H-3)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+g.name+'</text>';
     linePts.push([cx,ay]);
   });
@@ -615,6 +619,8 @@ function renderDetailDow(){
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW+'" height="'+pH.toFixed(1)+'" fill="rgba(180,180,180,.2)" rx="2"/>';
     var aH=(avg/maxV)*iH,ay=pT+iH-aH;
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+ay.toFixed(1)+'" width="'+bW+'" height="'+aH.toFixed(1)+'" fill="rgba(180,180,180,.7)" rx="2"/>';
+    var lY=(ay>pT+11)?ay-4:ay+9;
+    bars+='<text x="'+cx+'" y="'+lY.toFixed(1)+'" text-anchor="middle" fill="rgba(210,210,210,.75)" font-size="7.5">'+(avg>=1000?(avg/1000).toFixed(1)+'k':Math.round(avg))+'</text>';
     labels+='<text x="'+cx+'" y="'+(H-3)+'" text-anchor="middle" fill="#8a8a8a" font-size="8">'+DOW[i]+'</text>';
     linePts.push([cx,ay]);
   });
@@ -683,8 +689,10 @@ function renderDetailHeatmap(){
     var pts=seasonLines[sk].map(function(v,i){return[px(i),py(v)];});
     var line=smoothLine(pts);
     lines+='<path d="'+line+'" fill="none" stroke="'+SEAS[sk].col+'" stroke-width="1.6"/>';
-    pts.forEach(function(p){
+    pts.forEach(function(p,i){
       lines+='<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.2" fill="'+SEAS[sk].col+'"/>';
+      var lY=(p[1]>pT+11)?p[1]-5:p[1]+9;
+      lines+='<text x="'+p[0].toFixed(1)+'" y="'+lY.toFixed(1)+'" text-anchor="middle" fill="'+SEAS[sk].col+'" font-size="6.5" opacity=".9">'+Math.round(seasonLines[sk][i])+'</text>';
     });
   });
 
