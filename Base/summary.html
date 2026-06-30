@@ -205,7 +205,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>
-          <div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.7)"></div>초과발전 (잉여)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.45);border:1px solid rgba(93,168,122,.5)"></div>자가소비 구간</div>
+          <div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>
         </div>
       </div>
     </section>
@@ -546,12 +547,21 @@ function renderChart(){
   var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
-  /* 초과발전 영역: gen 곡선(위) ~ kwh 곡선(아래) smooth 채움 */
+  /* 자가소비 밴드: kwh 곡선(위) ~ gen 곡선(아래), gen ≤ kwh 구간 */
+  var scBot=data.map(function(m,i){return[px(i),Math.max(pyG(m),pyC(m))];});
+  var scD=smooth(data.map(function(m,i){return[px(i),pyC(m)];}));
+  scD+=' L'+px(n-1).toFixed(1)+','+scBot[n-1][1].toFixed(1);
+  for(var _j=n-2;_j>=0;_j--) scD+=' L'+px(_j).toFixed(1)+','+scBot[_j][1].toFixed(1);
+  scD+=' Z';
+
+  /* 초과발전 밴드: gen 곡선(위) ~ kwh 곡선(아래), gen > kwh 구간 */
   var exTop=data.map(function(m,i){return[px(i),m.gen>m.kwh?pyG(m):pyC(m)];});
   var exD=smooth(exTop);
   for(var _i=n-1;_i>=0;_i--) exD+=' L'+px(_i).toFixed(1)+','+pyC(data[_i]).toFixed(1);
   exD+=' Z';
-  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.22)"/>';
+
+  var excess='<path d="'+scD+'" fill="rgba(93,168,122,.22)"/>'
+            +'<path d="'+exD+'" fill="rgba(220,80,80,.30)"/>';
 
   data.forEach(function(m,i){
     var x=px(i);
@@ -562,12 +572,12 @@ function renderChart(){
 
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
-    +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.32)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
-    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.42)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.07)"/><stop offset="100%" stop-color="rgba(160,160,160,.01)"/></linearGradient>'
+    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.07)"/><stop offset="100%" stop-color="rgba(93,168,122,.01)"/></linearGradient>'
     +'</defs>'
-    +excess
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
+    +excess
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
     +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
