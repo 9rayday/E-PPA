@@ -544,12 +544,17 @@ function renderChart(){
 
   var cLine=smooth(data.map(function(m,i){return[px(i),pyC(m)];}));
   var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
-  var segW=(n>1?iW/(n-1):iW)*0.9,excess='',dots='',labels='';
+  var dots='',labels='';
+
+  /* 초과발전 영역: gen 곡선(위) ~ kwh 곡선(아래) smooth 채움 */
+  var exTop=data.map(function(m,i){return[px(i),m.gen>m.kwh?pyG(m):pyC(m)];});
+  var exD=smooth(exTop);
+  for(var _i=n-1;_i>=0;_i--) exD+=' L'+px(_i).toFixed(1)+','+pyC(data[_i]).toFixed(1);
+  exD+=' Z';
+  var excess='<path d="'+exD+'" fill="rgba(220,80,80,.22)"/>';
 
   data.forEach(function(m,i){
     var x=px(i);
-    if(m.gen>m.kwh) excess+='<rect x="'+(x-segW/2).toFixed(1)+'" y="'+pyG(m).toFixed(1)+
-      '" width="'+segW.toFixed(1)+'" height="'+(pyC(m)-pyG(m)).toFixed(1)+'" fill="rgba(220,80,80,.22)" rx="2"/>';
     labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+m.month+'월</text>';
     dots+='<circle cx="'+x+'" cy="'+pyC(m).toFixed(1)+'" r="3" fill="rgba(160,160,160,.85)"/>';
     dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="3" fill="rgba(93,168,122,.9)"/>';
