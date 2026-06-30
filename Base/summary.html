@@ -109,7 +109,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .fee-tbl .sav-row td:last-child{color:var(--orange);font-size:15px;font-weight:700}
 
 /* 20y grid */
-.grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-top:14px;margin-bottom:6px}
+.cum20-header{display:flex;align-items:center;justify-content:space-between;margin-top:14px;margin-bottom:8px}
+.grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
+.cum20-box{background:rgba(218,119,86,.10);border:1.5px solid rgba(218,119,86,.40);border-radius:var(--rs);padding:7px 16px;text-align:right;flex-shrink:0}
+.cum20-lbl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
+.cum20-num{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--orange);letter-spacing:-.5px;line-height:1}
 .twenty-grid{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
 
 /* Responsive */
@@ -311,7 +315,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <div class="sep"></div>
 
       <!-- 20년 시뮬레이션 결과 -->
-      <div class="grid-title">연도별 절감 현황 <span id="r-cum20" style="float:right;color:var(--orange);font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace;letter-spacing:-.3px">—</span></div>
+      <div class="cum20-header">
+        <div class="grid-title">연도별 절감 현황</div>
+        <div class="cum20-box">
+          <div class="cum20-lbl">20년 누적 절감액</div>
+          <div class="cum20-num" id="r-cum20">—</div>
+        </div>
+      </div>
       <div class="twenty-grid" id="twenty-grid"></div>
 
     </section>
@@ -854,11 +864,11 @@ function runSim(){
     });
     cum+=ann;years.push({year:y,sav:ann,cum:cum});
   }
-  document.getElementById('r-cum20').textContent='20년 누적 '+fmtM(years[19].cum);
-  /* ── 연도별 막대+선 차트 (선 = 막대 상단 연결, 동일 Y축) ── */
+  document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
+  /* ── 연도별 막대+선 차트 ── */
   var maxSav=Math.max.apply(null,years.map(function(y){return Math.max(0,y.sav);}));
   if(!maxSav)maxSav=1;
-  var W=680,H=150,pL=54,pR=14,pT=22,pB=26,iW=W-pL-pR,iH=H-pT-pB;
+  var W=680,H=162,pL=54,pR=14,pT=24,pB=26,iW=W-pL-pR,iH=H-pT-pB;
   var baseY=pT+iH;
   var gap=iW/20,bW=gap*0.52;
   var bars='',xLbls='',axes='',linePts=[];
@@ -868,14 +878,29 @@ function runSim(){
     axes+='<text x="'+(pL-5)+'" y="'+(y+3.5)+'" text-anchor="end" fill="#6a6a6a" font-size="7.5">'+fmtM(maxSav*r)+'</text>';
     axes+='<line x1="'+pL+'" y1="'+y.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+y.toFixed(1)+'" stroke="#2e2e2e" stroke-width="'+(r===0?'1':'.5')+'" stroke-dasharray="'+(r>0?'3,3':'')+'" />';
   });
-  /* 막대 그리기 + 선 포인트를 막대 상단에 배치 */
+  /* 막대(주황) + 세로 값 표시 + 선 포인트 */
   years.forEach(function(yr,i){
     var cx=pL+i*gap+gap/2;
     var bH=yr.sav>0?(yr.sav/maxSav)*iH:0;
     var topY=pT+iH-bH;
+    /* 막대 — 주황 */
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
-      '" fill="rgba(93,168,122,.50)" rx="1.5"/>';
+      '" fill="rgba(218,119,86,.72)" rx="1.5"/>';
+    /* 값 표시: 막대 높이 충분하면 내부 세로, 아니면 막대 위 */
+    var valTxt=fmtM(yr.sav);
+    if(bH>=24){
+      var my=(topY+bH/2).toFixed(1);
+      bars+='<text x="'+cx.toFixed(1)+'" y="'+my+
+        '" text-anchor="middle" dominant-baseline="central"'+
+        ' fill="rgba(255,255,255,.90)" font-size="6.5"'+
+        ' transform="rotate(-90,'+cx.toFixed(1)+','+my+')">'
+        +valTxt+'</text>';
+    } else if(bH>2){
+      bars+='<text x="'+cx.toFixed(1)+'" y="'+(topY-3).toFixed(1)+
+        '" text-anchor="middle" fill="rgba(218,119,86,.9)" font-size="6.5">'+valTxt+'</text>';
+    }
+    /* x축 레이블 */
     if((i+1)%5===0||i===0)
       xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-7)+'" text-anchor="middle" fill="#6a6a6a" font-size="7.5">'+(i+1)+'년</text>';
     linePts.push([cx, topY]);
