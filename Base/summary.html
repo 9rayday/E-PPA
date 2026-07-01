@@ -825,7 +825,7 @@ function renderFeeTable(){
     if(excess>0){
       var monthSmp=getMonthSmp(m.month);
       var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
-      recSettlement+=unitDiff*(excess/1000)*recWeight;
+      recSettlement+=unitDiff*excess*recWeight;
     }
   });
   var totalEff=totalSelfConsume; /* PPA 전력량요금은 자가소비분 기준으로만 과금 */
@@ -939,7 +939,7 @@ function runSim(){
       if(excess>0){
         var monthSmp=getMonthSmp(m.month);         // 현재: 수동입력 SMP 고정 사용 (연도별 변동 미반영)
         var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
-        recCostY+=unitDiff*(excess/1000)*recWeight;
+        recCostY+=unitDiff*excess*recWeight;
       }
     });
 
