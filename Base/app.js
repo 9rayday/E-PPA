@@ -93,6 +93,7 @@ function autoDetect(rows) {
 /* ── KEPCO AMI 파싱 (15분 간격 96열 + 일합계) ── */
 function parseAMI(rows) {
   var monthly = {};
+  var seenDates = {};  /* 중복 날짜 방어 */
 
   for (var r = 0; r < rows.length; r++) {
     var row = rows[r];
@@ -104,7 +105,13 @@ function parseAMI(rows) {
 
     var year  = parseInt(dateMatch[1]);
     var month = parseInt(dateMatch[2]);
+    var day   = parseInt(dateMatch[3]);
     if (year < 2010 || year > 2035 || month < 1 || month > 12) continue;
+
+    /* 동일 날짜 중복 행 스킵 */
+    var dateKey = year + '-' + month + '-' + day;
+    if (seenDates[dateKey]) continue;
+    seenDates[dateKey] = true;
 
     var nums = [];
     for (var c = 1; c < row.length; c++) {
@@ -180,6 +187,28 @@ function onLoaded(filename, monthly) {
   var totalKwh = monthly.reduce(function (s, m) { return s + m.kwh; }, 0);
   document.getElementById('upload-hint').textContent =
     monthly.length + '개월 인식 · 총 ' + (totalKwh / 1000).toFixed(0) + 'MWh';
+
+  /* 월 누락 경고 */
+  var warnEl = document.getElementById('upload-warn');
+  if (!warnEl) {
+    warnEl = document.createElement('div');
+    warnEl.id = 'upload-warn';
+    warnEl.style.cssText = 'font-size:11px;margin-top:8px;line-height:1.7;padding:8px 10px;border-radius:6px;display:none';
+    box.appendChild(warnEl);
+  }
+  if (monthly.length < 12) {
+    var presentMonths = monthly.map(function(m){ return m.month; });
+    var missingNums = [];
+    for (var i = 1; i <= 12; i++) {
+      if (presentMonths.indexOf(i) < 0) missingNums.push(i + '월');
+    }
+    var missingStr = missingNums.length ? missingNums.join(', ') + ' 누락' : (12 - monthly.length) + '개월 누락';
+    warnEl.style.cssText += ';background:rgba(218,119,86,.08);border:1px solid rgba(218,119,86,.25);color:#da7756;display:block';
+    warnEl.textContent = '⚠ ' + missingStr + ' — 데이터가 부족해 연간 분석값이 낮게 나올 수 있습니다';
+  } else {
+    warnEl.style.display = 'none';
+    warnEl.textContent = '';
+  }
 
   /* 평균 단가 자동 산출 */
   var totalAmount = monthly.reduce(function (s, m) { return s + m.amount; }, 0);

@@ -90,6 +90,12 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .btn-cta:active{transform:scale(.98)}
 .btn-cta:disabled{opacity:.55;cursor:not-allowed;pointer-events:none}
 
+/* 샘플 다운로드 */
+.sample-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:2px}
+.sample-divider{flex:1;height:1px;background:var(--border)}
+.sample-btn{background:none;border:none;color:var(--tx4);font-size:11px;font-family:inherit;cursor:pointer;display:flex;align-items:center;gap:5px;padding:4px 6px;border-radius:4px;white-space:nowrap;transition:color .15s}
+.sample-btn:hover{color:var(--tx2)}
+
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* Region selector */
@@ -175,6 +181,17 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
         </div>
       </div>
 
+      <div class="sample-row">
+        <div class="sample-divider"></div>
+        <button class="sample-btn" onclick="downloadSample()">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 1v7M3 5l3 3 3-3"/><path d="M1 10h10"/>
+          </svg>
+          샘플 데이터 다운로드
+        </button>
+        <div class="sample-divider"></div>
+      </div>
+
       <div id="cfg" style="display:none">
         <div class="cfg-sep"></div>
         <div class="cfg-title">분석 설정</div>
@@ -223,6 +240,30 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
   </div>
 
 </main>
+<script>
+function downloadSample() {
+  var rows = [
+    ['연도', '월', '사용량(kWh)', '청구금액(원)'],
+    [2024,  1,  850000,  94350000],
+    [2024,  2,  780000,  86580000],
+    [2024,  3,  820000,  91020000],
+    [2024,  4,  760000,  84360000],
+    [2024,  5,  900000,  99900000],
+    [2024,  6, 1100000, 122100000],
+    [2024,  7, 1350000, 149850000],
+    [2024,  8, 1400000, 155400000],
+    [2024,  9, 1050000, 116550000],
+    [2024, 10,  820000,  91020000],
+    [2024, 11,  880000,  97680000],
+    [2024, 12,  950000, 105450000]
+  ];
+  var ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{wch:8},{wch:6},{wch:14},{wch:16}];
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '월별 전력 데이터');
+  XLSX.writeFile(wb, 'EPPA_샘플데이터.xlsx');
+}
+</script>
 <script src="app.js"></script>
 </body>
 </html>
