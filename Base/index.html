@@ -148,8 +148,8 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
   <div class="left">
     <div class="left-content">
-      <h1 class="headline">전기요금 절감,<br><em>데이터로 증명합니다</em></h1>
-      <p class="subheadline">전력 사용 데이터를 올리면<br>PPA 도입 시 절감 단가를 즉시 산출합니다</p>
+      <h1 class="headline">태양광 PPA,<br><em>우리 회사엔 얼마나 이득일까요?</em></h1>
+      <p class="subheadline">전력 데이터 하나로 한전 요금 대비 절감액과<br>20년 누적 수익을 즉시 확인하세요</p>
     </div>
     <div class="scene">
       <div class="sun"></div>
@@ -263,7 +263,16 @@ function downloadSample() {
   /* 요일 계수 (0=일 1=월 ... 6=토) */
   var dowFactor = [0.38,1.00,1.00,1.00,1.00,0.94,0.40];
 
-  var rows = [];
+  /* 1행 헤더: 날짜 | 00:15 | 00:30 | … | 24:00 | 합계 */
+  var header = ['날짜'];
+  for (var _h = 0; _h < 24; _h++) {
+    for (var _q = 1; _q <= 4; _q++) {
+      var _t = _h * 60 + _q * 15;
+      header.push(('0'+Math.floor(_t/60)).slice(-2)+':'+('0'+(_t%60)).slice(-2));
+    }
+  }
+  header.push('합계');
+  var rows = [header];
   var d = new Date(2026, 0, 1);
 
   while (d.getFullYear() === 2026) {
