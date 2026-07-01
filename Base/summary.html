@@ -418,6 +418,17 @@ function fmtM(n){
   if(Math.abs(n)>=1e6) return (n/1e6).toFixed(1)+'M';
   return fmt(n)+'원';
 }
+/* 월별 SMP 조회
+   지금: 수동입력 필드(.smp-inp)에서 값을 읽음
+   추후: data.go.kr API 연동되면 이 함수 내부만
+         "그 달의 시간별 SMP를 전력수요예측량으로 가중평균한 값"을
+         반환하도록 교체하면 됩니다. 호출부(renderFeeTable, runSim)는 수정 불필요. */
+var apiSmpCache=null; // API 연동 후 { 1: 123.4, 2: 118.2, ... } 형태로 채워질 캐시
+function getMonthSmp(month){
+  if(apiSmpCache && apiSmpCache[month]!=null) return apiSmpCache[month];
+  var el=document.querySelector('.smp-inp[data-m="'+month+'"]');
+  return el?(parseFloat(el.value)||0):0;
+}
 
 /* ── 샘플 데이터 ── */
 var SAMPLE={
