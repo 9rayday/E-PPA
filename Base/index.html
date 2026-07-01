@@ -212,17 +212,17 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
         <div class="inp-row">
           <div class="inp-label">태양광 설치 용량<span style="font-size:10px;color:var(--tx4)">kWp</span></div>
-          <input class="inp-field" id="inp-capacity" type="number" placeholder="예: 100" min="1" step="0.1">
+          <input class="inp-field" id="inp-capacity" type="number" value="300" placeholder="예: 300" min="1" step="0.1">
         </div>
 
         <div class="inp-row-2">
           <div class="inp-row">
             <div class="inp-label">PPA 단가<span style="font-size:10px;color:var(--tx4)">원/kWh</span></div>
-            <input class="inp-field" id="inp-ppa" type="number" placeholder="예: 100" min="50">
+            <input class="inp-field" id="inp-ppa" type="number" value="187" placeholder="예: 187" min="50">
           </div>
           <div class="inp-row">
-            <div class="inp-label">현재 평균단가<span class="inp-auto" id="tariff-auto"></span></div>
-            <input class="inp-field" id="inp-tariff" type="number" placeholder="자동 산출">
+            <div class="inp-label">현재 한전 평균단가 <span style="font-size:10px;color:var(--tx4)">원/kWh</span><span class="inp-auto" id="tariff-auto"></span></div>
+            <input class="inp-field" id="inp-tariff" type="number" placeholder="청구서 기준 자동산출">
           </div>
         </div>
 
