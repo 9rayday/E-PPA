@@ -191,7 +191,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       </div>
       <div class="metrics" id="metric-cards"></div>
       <div class="chart-wrap">
-        <div class="chart-title">월별 전력소비 vs 태양광 발전</div>
+        <div class="chart-title">전력데이터 분석</div>
         <div id="chart-area"></div>
         <div class="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>
@@ -259,30 +259,37 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
 
-        <!-- Row 3: PPA 단가 / 망이용료 사용요금 유형 -->
-        <div class="sim-row sim-row-2">
+        <!-- Row 3: PPA 단가 / 망이용료 3요소 (손실률 하드코딩: 송전 1.57%, 종합 3.52%) -->
+        <div class="sim-row sim-row-4">
           <div>
             <div class="form-label">PPA 단가 <span class="form-hint">원/kWh</span></div>
             <input class="inp-s" id="inp-ppa" type="number" value="185" step="0.1" onchange="onAssumptionChange()">
           </div>
           <div>
-            <div class="form-label">망이용료 사용요금 유형 <span class="form-hint">별표17</span></div>
-            <select class="sel-field" id="sel-netfee" onchange="onAssumptionChange()">
-              <optgroup label="배전 발전 → 배전고압 사용자">
-                <option value="3.05">③④ 동일 변전소내 배전고압 (3.05원/kWh)</option>
-                <option value="5.49">⑦⑧ 다른 변전소 · 수도권 (5.49원/kWh)</option>
-                <option value="4.47">⑦⑧ 다른 변전소 · 비수도권 (4.47원/kWh)</option>
-              </optgroup>
-              <optgroup label="배전 발전 → 송전 사용자">
-                <option value="2.44">⑤⑥ 수도권 (2.44원/kWh)</option>
-                <option value="1.42">⑤⑥ 비수도권 (1.42원/kWh)</option>
-              </optgroup>
-              <optgroup label="송전 발전 → 사용자">
-                <option value="2.44">① 송전발전 → 송전사용자 · 수도권 (2.44원/kWh)</option>
-                <option value="1.42">① 송전발전 → 송전사용자 · 비수도권 (1.42원/kWh)</option>
-                <option value="5.49">② 송전발전 → 배전고압사용자 · 수도권 (5.49원/kWh)</option>
-                <option value="4.47">② 송전발전 → 배전고압사용자 · 비수도권 (4.47원/kWh)</option>
-              </optgroup>
+            <div class="form-label">발전지역별 송전이용요금 <span class="form-hint">별표1</span></div>
+            <select class="sel-field" id="inp-fee-gen" onchange="onAssumptionChange()">
+              <option value="1.92" selected>비수도권 (1.92원/kWh)</option>
+              <option value="1.25">수도권 북부 (1.25원/kWh)</option>
+              <option value="1.20">수도권 남부 (1.20원/kWh)</option>
+              <option value="1.90">제주 (1.90원/kWh)</option>
+              <option value="0">해당없음 (0원/kWh)</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">수요지역별 송전이용요금 <span class="form-hint">별표1</span></div>
+            <select class="sel-field" id="sel-transfee" onchange="onAssumptionChange()">
+              <option value="1.42" selected>비수도권 (1.42원/kWh)</option>
+              <option value="2.44">수도권 (2.44원/kWh)</option>
+              <option value="6.95">제주 (6.95원/kWh)</option>
+              <option value="0">해당없음 (0원/kWh)</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">배전이용요금 <span class="form-hint">별표1</span></div>
+            <select class="sel-field" id="sel-distfee" onchange="onAssumptionChange()">
+              <option value="3.05" selected>고압 600V초과 (3.05원/kWh)</option>
+              <option value="11.33">저압 600V이하 (11.33원/kWh)</option>
+              <option value="0">해당없음 – 송전사용자 (0원/kWh)</option>
             </select>
           </div>
         </div>
@@ -304,17 +311,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           <div>
             <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
             <input class="inp-s" id="inp-fee-adj" type="number" value="10.22" step="0.01" onchange="onAssumptionChange()">
-          </div>
-        </div>
-
-        <div class="sim-row sim-row-2">
-          <div>
-            <div class="form-label">REC 계약단가 <span class="form-hint">원/REC</span></div>
-            <input class="inp-s" id="inp-rec-price" type="number" value="80000" step="100" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">REC 가중치 <span class="form-hint">고정</span></div>
-            <input class="inp-s" id="inp-rec-weight" type="number" value="1.2" step="0.1" disabled>
           </div>
         </div>
 
@@ -361,6 +357,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 </div>
 
 <script>
+/* ── 망이용료 손실률 상수 (한전 전기공급약관 부록, 2024년 기준) ── */
+var TRANS_LOSS = 0.0157; // 송전손실률 1.57%
+var COMB_LOSS  = 0.0352; // 종합손실률 3.52%
+var DIST_LOSS  = COMB_LOSS - TRANS_LOSS; // 배전손실률 ≈ 1.95%
+
 /* ── KEPCO 요금 (2026-06-01) ── */
 var KEPCO = {
   '갑I_저압':    { label:'갑I 저압',     basicRate:5230, tou:false, energy:{summer:123.6,spring_fall:86.4,winter:110.8} },
@@ -556,7 +557,7 @@ function renderMetrics(){
 function renderChart(){
   var data=effMonthly,n=data.length;
   if(!n) return;
-  var maxV=Math.max.apply(null,data.map(function(m){return m.kwh;}));
+  var maxV=Math.max.apply(null,data.map(function(m){return Math.max(m.kwh,m.gen);}));
   if(!maxV) return;
   var el=document.getElementById('chart-area');
   var W=el.clientWidth||800,H=el.clientHeight||260;
@@ -799,16 +800,21 @@ function renderDetailHeatmap(){
 function renderFeeTable(){
   var tariff     =KEPCO[document.getElementById('sel-tariff').value];
   var contractKw =parseFloat(document.getElementById('inp-contract').value)||0;
-  var netFeeUsage=parseFloat(document.getElementById('sel-netfee').value);
-  var netFeeBasic=2000;
+  var genFee    =parseFloat(document.getElementById('inp-fee-gen').value)||0;
+  var transFee  =parseFloat(document.getElementById('sel-transfee').value)||0;
+  var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
+  /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
+  var netFeeUsage=genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
+  /* 망이용료 기본요금: 적용 구성요소에 따라 자동 합산 */
+  var netFeeBasic=(genFee>0?667.36:0)+(transFee>0?667.61:0)
+                 +(distFee===3.05?548:distFee===11.33?1066:0);
   var climate    =parseFloat(document.getElementById('inp-climate').value)||9;
   var fuel       =parseFloat(document.getElementById('inp-fuel').value)||5;
   var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
   var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
   var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
-  var recPrice =parseFloat(document.getElementById('inp-rec-price').value)||0;
-  var recWeight=parseFloat(document.getElementById('inp-rec-weight').value)||1.2;
+  var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
 
   var totalKwh=effMonthly.reduce(function(s,m){return s+m.kwh;},0);
 
@@ -871,12 +877,12 @@ function renderFeeTable(){
   body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(kTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
-  body+='<tr class="section-row"><td colspan="2">② PPA 전력 구매비 (자가소비분 '+fmt(totalEff)+'kWh / '+(totalEff/1000).toFixed(1)+'MWh)</td></tr>';
+  body+='<tr class="section-row"><td colspan="2">② PPA 사용분 ('+(totalEff/1000).toFixed(1)+'MWh)</td></tr>';
   body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
   var p2bKw=Math.max(0,cap-contractKw);
-  body+='<tr><td style="padding-left:38px">기본요금 (2,000원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
-  body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p2u)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">기본요금 ('+netFeeBasic.toFixed(0)+'원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage.toFixed(2)+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+feeAdjR+'원/kWh)</td><td>'+W(p4)+'</td></tr>';
@@ -912,15 +918,17 @@ function renderFeeTable(){
 /* ── 20년 시뮬레이션 ── */
 function runSim(){
   var tariff =KEPCO[document.getElementById('sel-tariff').value];
-  var netFee =parseFloat(document.getElementById('sel-netfee').value);
+  var genFee   =parseFloat(document.getElementById('inp-fee-gen').value)||0;
+  var transFee =parseFloat(document.getElementById('sel-transfee').value)||0;
+  var distFee  =parseFloat(document.getElementById('sel-distfee').value)||0;
+  var netFee   =genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
   var climate=parseFloat(document.getElementById('inp-climate').value)||10;
   var fuel   =parseFloat(document.getElementById('inp-fuel').value)||5;
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
   var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
-  var recPrice =parseFloat(document.getElementById('inp-rec-price').value)||0;
-  var recWeight=parseFloat(document.getElementById('inp-rec-weight').value)||1.2;
+  var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
   var cum=0,years=[];
 
   for(var y=1;y<=20;y++){
