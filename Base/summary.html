@@ -824,7 +824,7 @@ function renderFeeTable(){
 
     if(excess>0){
       var monthSmp=getMonthSmp(m.month);
-      var unitDiff=Math.max(0,recPrice-monthSmp);  // SMP가 계약단가보다 높으면 0원/REC
+      var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
       recSettlement+=unitDiff*(excess/1000)*recWeight;
     }
   });
@@ -896,7 +896,7 @@ function renderFeeTable(){
 
   body+='<tr class="section-row"><td colspan="2">④ 초과발전 REC 매입비용 (초과 '+fmt(totalExcess)+'kWh · 전기사용자 매입)</td></tr>';
   body+='<tr><td style="padding-left:22px">REC 수량 ('+fmt(totalExcess)+'kWh ÷ 1,000 × 가중치 '+recWeight+')</td><td>'+(totalExcess/1000*recWeight).toFixed(2)+' REC</td></tr>';
-  body+='<tr><td style="padding-left:22px">매입비용 (REC계약단가 '+fmt(recPrice)+'원 − 월SMP, 0원 하한)</td><td>'+W(recSettlement)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">매입비용 (PPA단가 '+fmt(ppa)+'원 − 월SMP, 0원 하한)</td><td>'+W(recSettlement)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
   body+='<tr style="font-weight:600;background:var(--bg3)"><td>총 비용 합계 (PPA + 잔여 한전 + REC매입)</td><td>'+W(totalCost)+'</td></tr>';
@@ -938,7 +938,7 @@ function runSim(){
 
       if(excess>0){
         var monthSmp=getMonthSmp(m.month);         // 현재: 수동입력 SMP 고정 사용 (연도별 변동 미반영)
-        var unitDiff=Math.max(0,recPrice-monthSmp);
+        var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
         recCostY+=unitDiff*(excess/1000)*recWeight;
       }
     });
