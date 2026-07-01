@@ -918,21 +918,37 @@ function runSim(){
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
   var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
-  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa,cum=0,years=[];
+  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
+  var recPrice =parseFloat(document.getElementById('inp-rec-price').value)||0;
+  var recWeight=parseFloat(document.getElementById('inp-rec-weight').value)||1.2;
+  var cum=0,years=[];
 
   for(var y=1;y<=20;y++){
-    var kF=Math.pow(1+esc,y-1),sF=Math.pow(0.995,y-1),ann=0;
+    var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0, recCostY=0;
+
     effMonthly.forEach(function(m){
+      var genThisYear=m.eff*sF;                   // 설비 열화(연 0.5%) 반영 발전량
+      var self  =Math.min(genThisYear,m.kwh);      // 자가소비분 (사용량이 상한)
+      var excess=Math.max(0,genThisYear-m.kwh);    // 초과발전분
+
       var er=energyRate(tariff,m.month)*kF;
       var vK=(er+(climate+fuel)*kF)*1.127;
       var vP=(ppa+netFee+trade+adj)*1.127;
-      ann+=(vK-vP)*m.eff*sF;   /* max(0,...) 제거 — 음수 절감도 반영 */
+      ann+=(vK-vP)*self;                           // 자가소비분에 대해서만 단가차 적용
+
+      if(excess>0){
+        var monthSmp=getMonthSmp(m.month);         // 현재: 수동입력 SMP 고정 사용 (연도별 변동 미반영)
+        var unitDiff=Math.max(0,recPrice-monthSmp);
+        recCostY+=unitDiff*(excess/1000)*recWeight;
+      }
     });
+
+    ann-=recCostY;                                 // REC 매입비용은 전기사용자 추가부담 → 절감액에서 차감
     cum+=ann;years.push({year:y,sav:ann,cum:cum});
   }
+
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
-  /* ── 연도별 막대+선 차트 (음수 지원) ── */
-  /* ── 연도별 차트: 막대(연간) + 누적 상승선 ── */
+
   var maxSav=Math.max.apply(null,years.map(function(y){return y.sav;}));
   var minSav=Math.min.apply(null,years.map(function(y){return y.sav;}));
   var posMax=Math.max(maxSav,0),negMin=Math.min(minSav,0);
@@ -945,10 +961,8 @@ function runSim(){
   var gap=iW/20,bW=gap*0.68;
   var bars='',xLbls='',linePts=[];
 
-  /* 0선 */
   var zLine='<line x1="'+pL+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+zeroY.toFixed(1)+'" stroke="#3d4d5d" stroke-width="1.5"/>';
 
-  /* 양수 전환 첫 번째 인덱스 */
   var firstPosIdx=-1;
   for(var _k=0;_k<years.length;_k++){if(years[_k].sav>=0){firstPosIdx=_k;break;}}
 
@@ -957,7 +971,6 @@ function runSim(){
     var isPos=yr.sav>=0;
     var bH=Math.abs(yr.sav)/barRange*iH;
     var topY=isPos?barY(yr.sav):zeroY;
-    /* 전환 시점=보라, 음수=주황(반투명), 양수=초록(반투명) */
     var fillColor=(i===firstPosIdx)?'rgba(140,80,200,.72)':(isPos?'rgba(80,168,100,.48)':'rgba(218,119,86,.48)');
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
