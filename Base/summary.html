@@ -882,18 +882,22 @@ function runSim(){
   /* 0선 */
   var zLine='<line x1="'+pL+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+zeroY.toFixed(1)+'" stroke="#3d4d5d" stroke-width="1.5"/>';
 
+  /* 양수 전환 첫 번째 인덱스 */
+  var firstPosIdx=-1;
+  for(var _k=0;_k<years.length;_k++){if(years[_k].sav>=0){firstPosIdx=_k;break;}}
+
   years.forEach(function(yr,i){
     var cx=pL+i*gap+gap/2;
     var isPos=yr.sav>=0;
     var bH=Math.abs(yr.sav)/barRange*iH;
     var topY=isPos?barY(yr.sav):zeroY;
-    /* 음수=주황, 양수=초록 */
+    /* 전환 시점=보라, 음수=주황(반투명), 양수=초록(반투명) */
+    var fillColor=(i===firstPosIdx)?'rgba(140,80,200,.72)':(isPos?'rgba(80,168,100,.48)':'rgba(218,119,86,.48)');
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
-      '" fill="'+(isPos?'rgba(80,168,100,.85)':'rgba(218,119,86,.85)')+'" rx="2"/>';
+      '" fill="'+fillColor+'" rx="2"/>';
     if((i+1)%5===0||i===0)
       xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="8">'+(i+1)+'년</text>';
-    /* 막대 끝점 연결 (양수=상단, 음수=하단) */
     linePts.push([cx, barY(yr.sav)]);
   });
 
@@ -902,7 +906,7 @@ function runSim(){
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
     +zLine+bars
-    +'<path d="'+trendLine+'" fill="none" stroke="rgba(30,80,150,.70)" stroke-width="1.8"/>'
+    +'<path d="'+trendLine+'" fill="none" stroke="rgba(130,70,190,.78)" stroke-width="1.8"/>'
     +xLbls+'</svg>';
 }
 
