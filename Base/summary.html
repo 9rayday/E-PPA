@@ -668,8 +668,8 @@ function renderDetailSeasonal(){
     return {name:SEAS[sk].name,avg:avg,peak:peak};
   });
   var maxV=Math.max.apply(null,groups.map(function(g){return g.peak;}));
-  var W=300,H=90,pL=36,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
-  var gap=iW/3,bW=30,bars='',labels='',grid='',linePts=[];
+  var W=400,H=90,pL=40,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/3,bW=40,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
     var py=pT+iH*(1-y);
@@ -712,8 +712,8 @@ function renderDetailDow(){
   var stats=DOW.map(function(){return{sum:0,cnt:0,peak:0};});
   daily.forEach(function(d){stats[d.dow].sum+=d.kwh;stats[d.dow].cnt++;stats[d.dow].peak=Math.max(stats[d.dow].peak,d.kwh);});
   var maxV=Math.max.apply(null,stats.map(function(s){return s.peak;}));
-  var W=300,H=90,pL=36,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
-  var gap=iW/7,bW=18,bars='',labels='',grid='',linePts=[];
+  var W=400,H=90,pL=40,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/7,bW=26,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
     var py=pT+iH*(1-y);
@@ -764,7 +764,7 @@ function renderDetailHeatmap(){
   }
   var maxV=Math.max.apply(null,avgByH)||1;
 
-  var W=680,H=90,pL=38,pR=12,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var W=800,H=90,pL=44,pR=12,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/12,bW=gap*0.74;
   function bx(i){return pL+i*gap+(gap-bW)/2;}
 
