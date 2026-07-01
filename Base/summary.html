@@ -42,7 +42,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
 /* fn1 */
 #fn1{flex:1;display:flex;flex-direction:column;padding:22px 26px;gap:16px;min-height:0}
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;flex-shrink:0}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0}
 .metric-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:16px 18px}
 .metric-label{font-size:10px;color:var(--tx4);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .metric-value{font-size:22px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace;letter-spacing:-.5px}
@@ -121,7 +121,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   .page{height:auto;overflow:visible}
   .detail-grid{grid-template-columns:1fr}
   .detail-card.wide{grid-column:auto}
-  .metrics{grid-template-columns:1fr 1fr}
+  .metrics{grid-template-columns:1fr 1fr 1fr}
   .sim-grid{grid-template-columns:1fr 1fr}
   .sim-grid .span2{grid-column:span 2}
   .sim-grid .span3{grid-column:span 2}
@@ -538,10 +538,10 @@ function renderMetrics(){
 
   document.getElementById('metric-cards').innerHTML=[
     {label:'총 전력량',   value:(totalKwh/1000).toFixed(1),unit:'MWh',sub:monthly.length+'개월 합계'},
-    {label:'연간 발전량', value:(totalGen/1000).toFixed(1),unit:'MWh',
-     sub:'초과 '+(excessKwh/1000).toFixed(1)+'MWh ('+excessN+'개월)'},
+    {label:'연간 발전량', value:(totalGen/1000).toFixed(1),unit:'MWh',sub:'자가소비 '+(totalEff/1000).toFixed(1)+'MWh'},
+    {label:'초과발전량',  value:(excessKwh/1000).toFixed(1),unit:'MWh',sub:excessN+'개월 · 발전량의 '+overRatio.toFixed(1)+'%'},
     {label:'RE100 이행률',value:re100.toFixed(1),unit:'%',
-     sub:'잉여 '+overRatio.toFixed(1)+'% · '+(re100>=100?'목표 달성':(100-re100).toFixed(1)+'% 부족'),
+     sub:(re100>=100?'목표 달성':(100-re100).toFixed(1)+'% 부족'),
      hi:re100>=100}
   ].map(function(c){
     return '<div class="metric-card"'+(c.hi?' style="border-color:rgba(93,168,122,.4)"':'')+'>'+
