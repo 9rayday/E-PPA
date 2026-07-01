@@ -971,7 +971,7 @@ function runSim(){
     var isPos=yr.sav>=0;
     var bH=Math.abs(yr.sav)/barRange*iH;
     var topY=isPos?barY(yr.sav):zeroY;
-    var fillColor=(i===firstPosIdx)?'rgba(140,80,200,.72)':(isPos?'rgba(80,168,100,.48)':'rgba(218,119,86,.48)');
+    var fillColor=(i===firstPosIdx)?'rgba(200,90,20,.90)':(isPos?'rgba(218,119,86,.55)':'rgba(160,160,160,.45)');
     bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
       '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
       '" fill="'+fillColor+'" rx="2"/>';
@@ -985,7 +985,7 @@ function runSim(){
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
     +zLine+bars
-    +'<path d="'+trendLine+'" fill="none" stroke="rgba(130,70,190,.78)" stroke-width="1.8"/>'
+    +'<path d="'+trendLine+'" fill="none" stroke="rgba(218,119,86,.85)" stroke-width="1.8"/>'
     +xLbls+'</svg>';
 }
 
