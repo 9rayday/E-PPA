@@ -307,6 +307,37 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
 
+        <div class="sim-row sim-row-2">
+          <div>
+            <div class="form-label">REC 계약단가 <span class="form-hint">원/REC</span></div>
+            <input class="inp-s" id="inp-rec-price" type="number" value="80000" step="100" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">REC 가중치 <span class="form-hint">고정</span></div>
+            <input class="inp-s" id="inp-rec-weight" type="number" value="1.2" step="0.1" disabled>
+          </div>
+        </div>
+
+        <div>
+          <div class="form-label">월별 SMP <span class="form-hint">원/kWh · 현재 수동입력 / 추후 API 가중평균으로 자동화 예정</span></div>
+          <div class="sim-row" style="grid-template-columns:repeat(6,1fr);gap:6px">
+            <input class="inp-s smp-inp" data-m="1" type="number" placeholder="1월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="2" type="number" placeholder="2월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="3" type="number" placeholder="3월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="4" type="number" placeholder="4월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="5" type="number" placeholder="5월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="6" type="number" placeholder="6월" onchange="onAssumptionChange()">
+          </div>
+          <div class="sim-row" style="grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">
+            <input class="inp-s smp-inp" data-m="7" type="number" placeholder="7월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="8" type="number" placeholder="8월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="9" type="number" placeholder="9월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="10" type="number" placeholder="10월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="11" type="number" placeholder="11월" onchange="onAssumptionChange()">
+            <input class="inp-s smp-inp" data-m="12" type="number" placeholder="12월" onchange="onAssumptionChange()">
+          </div>
+        </div>
+
       </div>
 
       <!-- 요금 비교 테이블 -->
