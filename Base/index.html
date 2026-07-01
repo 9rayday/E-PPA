@@ -31,16 +31,16 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .main{height:calc(100vh - 54px);display:flex}
 
 /* Left */
-.left{flex:1;background:#252525;display:flex;flex-direction:column;justify-content:center;padding:56px 56px}
+.left{flex:0 0 50%;background:#252525;display:flex;flex-direction:column;justify-content:center;padding:56px 64px}
 .left-content{position:relative}
 .headline{font-size:32px;font-weight:700;line-height:1.22;letter-spacing:-1.2px;color:var(--tx1);margin-bottom:18px}
 .headline em{font-style:normal;color:var(--orange)}
-.subheadline{font-size:14px;color:var(--tx3);line-height:1.9;max-width:340px}
+.subheadline{font-size:14px;color:var(--tx3);line-height:1.9;max-width:380px}
 
-/* Scene — 텍스트 아래, 우측 업로드박스와 동일 사이즈로 제한 */
+/* Scene */
 .scene{
-  margin-top:28px;position:relative;
-  width:100%;max-width:380px;height:200px;
+  margin-top:32px;position:relative;
+  width:100%;max-width:480px;height:220px;
   border-radius:12px;overflow:hidden;
   background:#2c2c2c;
 }
@@ -59,7 +59,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 }
 
 /* Right */
-.right{width:460px;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:48px 40px;border-left:1px solid var(--border);background:var(--bg2);overflow-y:auto}
+.right{flex:0 0 50%;display:flex;align-items:center;justify-content:center;padding:48px 64px;border-left:1px solid var(--border);background:var(--bg2);overflow-y:auto}
 .right-inner{width:100%;display:flex;flex-direction:column;gap:14px}
 
 /* Upload */
@@ -108,10 +108,10 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 /* Responsive */
 @media(max-width:900px){
   .main{flex-direction:column;height:auto;min-height:calc(100vh - 54px)}
-  .left{padding:40px 28px 36px}
+  .left{flex:none;width:100%;padding:40px 28px 36px}
   .headline{font-size:28px}
   .scene{height:160px;max-width:100%}
-  .right{width:100%;padding:32px 24px 40px;border-left:none;border-top:1px solid var(--border);align-items:flex-start}
+  .right{flex:none;width:100%;padding:32px 24px 40px;border-left:none;border-top:1px solid var(--border);align-items:flex-start}
 }
 @media(max-width:480px){
   .hdr{padding:0 20px}
