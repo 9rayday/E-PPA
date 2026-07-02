@@ -528,7 +528,7 @@ if(!hrGrid){
 }
 
 /* ── Lead Gate ── */
-var GATE_URL='https://script.google.com/macros/s/AKfycbwWaIiScRi4ma0fZbHqs8Srf6NEJBYO9a88TYAd8rdglzvBwgaJvM1TzD32KN5NloPmQw/exec';
+var GATE_URL='https://script.google.com/macros/s/AKfycbyDy12EebMK5IHo9IH9A8614VILn6D3CUCdFClpJU1nvUjoJRk6_cZBhWbpO9AOZdURUw/exec';
 
 function checkGate(){
   if(localStorage.getItem('eppa_lead_ok')){
@@ -546,19 +546,32 @@ function submitLead(){
   }
   var btn=document.getElementById('gate-submit-btn');
   btn.disabled=true;btn.textContent='전송 중…';
-  var annualSaving=(document.getElementById('r-ann')||{}).textContent||'';
   var cum20=(document.getElementById('r-cum20')||{}).textContent||'';
+  /* 분석 지표 수집 */
+  var _tkwh =effMonthly.reduce(function(s,m){return s+m.kwh;},0);
+  var _tgen =effMonthly.reduce(function(s,m){return s+m.gen;},0);
+  var _teff =effMonthly.reduce(function(s,m){return s+m.eff;},0);
+  var _exc  =effMonthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
+  var _re100v=_tkwh>0?(_teff/_tkwh*100).toFixed(1):0;
+  var _cap  =parseFloat((document.getElementById('inp-cap')||{}).value)||params.cap||0;
+  var _hours=parseFloat((document.getElementById('inp-hours')||{}).value)||0;
+  var _ppa  =parseFloat((document.getElementById('inp-ppa')||{}).value)||0;
   function unlockGate(){
     localStorage.setItem('eppa_lead_ok','1');
     document.getElementById('lead-gate').style.display='none';
   }
-  /* GET + URL 파라미터: no-cors 환경에서 가장 안정적 */
   var qs='?company='+encodeURIComponent(company)
         +'&name='+encodeURIComponent(name)
         +'&contact='+encodeURIComponent(contact)
         +'&re100='+encodeURIComponent(re100)
-        +'&annualSaving='+encodeURIComponent(annualSaving)
-        +'&cum20='+encodeURIComponent(cum20);
+        +'&cum20='+encodeURIComponent(cum20)
+        +'&totalKwh='+encodeURIComponent((_tkwh/1000).toFixed(1)+'MWh')
+        +'&totalGen='+encodeURIComponent((_tgen/1000).toFixed(1)+'MWh')
+        +'&excessKwh='+encodeURIComponent((_exc/1000).toFixed(1)+'MWh')
+        +'&capacity='+encodeURIComponent(_cap+'kWp')
+        +'&hours='+encodeURIComponent(_hours+'h/day')
+        +'&re100rate='+encodeURIComponent(_re100v+'%')
+        +'&ppaPrice='+encodeURIComponent(_ppa+'원/kWh');
   fetch(GATE_URL+qs,{mode:'no-cors'})
     .then(unlockGate).catch(unlockGate);
 }
