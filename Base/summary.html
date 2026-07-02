@@ -66,9 +66,9 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .inp-unit{font-size:11px;color:var(--tx3);white-space:nowrap}
 
 /* fn2 */
-#fn2{padding:22px 26px;display:flex;flex-direction:column;gap:12px}
-.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px}
+#fn2{flex:1;min-height:0;padding:22px 26px;display:flex;flex-direction:column;gap:12px}
+.detail-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:12px;grid-template-rows:1fr 1fr 1fr}
+.detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;display:flex;flex-direction:column;min-height:0}
 .detail-card.wide{grid-column:1/-1}
 .detail-title{font-size:10px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .ami-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100px;gap:10px;color:var(--tx4);font-size:11px;text-align:center;line-height:1.7}
@@ -733,11 +733,12 @@ function renderDetailMonthly(){
   var line=smoothLine(linePts);
 
   el.innerHTML='<div class="detail-title">월별 전력사용량 (kWh)</div>'
-    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
+    +'<div style="flex:1;min-height:0;overflow:hidden">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><g>'
     +grid+bars
     +'<path d="'+line+'" fill="none" stroke="#da7756" stroke-width="1.5" opacity=".7"/>'
     +linePts.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="#da7756" opacity=".8"/>';}).join('')
-    +labels+'</g></svg>';
+    +labels+'</g></svg></div>';
 }
 
 /* ── 기능 2: 계절별 (그레이 모노톤 + 곡선) ── */
@@ -777,12 +778,13 @@ function renderDetailSeasonal(){
   var line=smoothLine(linePts);
 
   el.innerHTML='<div class="detail-title">계절별 월평균 전력 (kWh)</div>'
-    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
+    +'<div style="flex:1;min-height:0;overflow:hidden">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><g>'
     +grid+bars
     +'<path d="'+line+'" fill="none" stroke="#da7756" stroke-width="1.5" opacity=".7"/>'
     +linePts.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="#da7756" opacity=".8"/>';}).join('')
-    +labels+'</g></svg>'
-    +'<div style="font-size:10px;color:var(--tx4);margin-top:4px">진한색=월평균 · 연한색=최대월</div>';
+    +labels+'</g></svg></div>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:4px;flex-shrink:0">진한색=월평균 · 연한색=최대월</div>';
 }
 
 /* ── 기능 2: 요일별 (그레이 모노톤 + 곡선, AMI only) ── */
@@ -821,12 +823,13 @@ function renderDetailDow(){
   var line=smoothLine(linePts);
 
   el.innerHTML='<div class="detail-title">요일별 전력사용량</div>'
-    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
+    +'<div style="flex:1;min-height:0;overflow:hidden">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><g>'
     +grid+bars
     +'<path d="'+line+'" fill="none" stroke="#da7756" stroke-width="1.5" opacity=".7"/>'
     +linePts.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="#da7756" opacity=".8"/>';}).join('')
-    +labels+'</g></svg>'
-    +'<div style="font-size:10px;color:var(--tx4);margin-top:4px">진한색=일평균 · 연한색=최대일</div>';
+    +labels+'</g></svg></div>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:4px;flex-shrink:0">진한색=일평균 · 연한색=최대일</div>';
 }
 
 /* ── 기능 2: 시간대별 평균 막대 (전월 통합) ── */
@@ -876,11 +879,12 @@ function renderDetailHeatmap(){
   var line=smoothLine(linePts);
 
   el.innerHTML='<div class="detail-title">시간대별 평균 전력사용량 (kWh)</div>'
-    +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto"><g>'
+    +'<div style="flex:1;min-height:0;overflow:hidden">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><g>'
     +grid+bars
     +'<path d="'+line+'" fill="none" stroke="#da7756" stroke-width="1.5" opacity=".7"/>'
     +linePts.map(function(p){return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="2.5" fill="#da7756" opacity=".8"/>';}).join('')
-    +valLbls+xLbls+'</g></svg>';
+    +valLbls+xLbls+'</g></svg></div>';
 }
 
 /* ── 기능 3: 요금 비교 테이블 ── */
