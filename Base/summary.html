@@ -77,7 +77,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 #fn3{padding:22px 26px;display:flex;flex-direction:column;gap:14px;position:relative}
 
 /* Lead Gate */
-#lead-gate{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(16,16,16,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-radius:var(--r)}
+#lead-gate{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(16,16,16,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .gate-card{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:36px 40px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:16px}
 .gate-header{display:flex;flex-direction:column;gap:6px}
 .gate-title{font-size:17px;font-weight:700;color:var(--tx1);letter-spacing:-.4px}
@@ -548,19 +548,19 @@ function submitLead(){
   btn.disabled=true;btn.textContent='전송 중…';
   var annualSaving=(document.getElementById('r-ann')||{}).textContent||'';
   var cum20=(document.getElementById('r-cum20')||{}).textContent||'';
-  fetch(GATE_URL,{
-    method:'POST',mode:'no-cors',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({company:company,name:name,contact:contact,re100:re100,
-                         annualSaving:annualSaving,cum20:cum20})
-  }).then(function(){
+  function unlockGate(){
     localStorage.setItem('eppa_lead_ok','1');
     document.getElementById('lead-gate').style.display='none';
-  }).catch(function(){
-    /* no-cors 모드에서 네트워크 에러 외엔 항상 성공 처리 */
-    localStorage.setItem('eppa_lead_ok','1');
-    document.getElementById('lead-gate').style.display='none';
-  });
+  }
+  /* GET + URL 파라미터: no-cors 환경에서 가장 안정적 */
+  var qs='?company='+encodeURIComponent(company)
+        +'&name='+encodeURIComponent(name)
+        +'&contact='+encodeURIComponent(contact)
+        +'&re100='+encodeURIComponent(re100)
+        +'&annualSaving='+encodeURIComponent(annualSaving)
+        +'&cum20='+encodeURIComponent(cum20);
+  fetch(GATE_URL+qs,{mode:'no-cors'})
+    .then(unlockGate).catch(unlockGate);
 }
 
 /* ── fn 탭 전환 ── */
