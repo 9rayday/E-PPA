@@ -123,25 +123,29 @@ function parseAMI(rows) {
     /* 일합계 결정: 마지막 값이 앞 96개의 합에 근접하면 합계열로 간주 */
     var sum96   = nums.slice(0, 96).reduce(function (a, b) { return a + b; }, 0);
     var lastVal = nums[nums.length - 1];
-    var dayKwh;
+    var dayKwh, dayMaxInterval;
 
     if (nums.length > 96 && sum96 > 0 && Math.abs(lastVal - sum96) / sum96 < 0.05) {
       dayKwh = lastVal;
+      dayMaxInterval = Math.max.apply(null, nums.slice(0, 96));
     } else {
       dayKwh = nums.reduce(function (a, b) { return a + b; }, 0);
+      dayMaxInterval = Math.max.apply(null, nums);
     }
 
     /* Wh → kWh 변환: 일 사용량이 50,000 초과 시 단위 Wh 가정 */
-    if (dayKwh > 50000) dayKwh /= 1000;
+    if (dayKwh > 50000) { dayKwh /= 1000; dayMaxInterval /= 1000; }
 
     var key = year + '-' + month;
-    if (!monthly[key]) monthly[key] = { year: year, month: month, kwh: 0, amount: 0 };
+    if (!monthly[key]) monthly[key] = { year: year, month: month, kwh: 0, amount: 0, maxInterval: 0 };
     monthly[key].kwh += dayKwh;
+    /* 요금적용전력(순시 최대수요, kW) = 15분 구간 최대 에너지(kWh) × 4 */
+    monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
   }
 
   return Object.values(monthly)
     .sort(function (a, b) { return a.year !== b.year ? a.year - b.year : a.month - b.month; })
-    .map(function (m) { return { year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount) }; });
+    .map(function (m) { return { year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount), demandKw: Math.round(m.maxInterval * 4) }; });
 }
 
 /* ── 월별 청구 데이터 파싱 (년도|월|사용량|청구금액) ── */
@@ -256,7 +260,8 @@ function runAnalysis() {
       kwh: m.kwh, amount: m.amount,
       gen: Math.round(gen),
       eff: Math.round(eff),
-      selfRate: selfRate
+      selfRate: selfRate,
+      demandKw: m.demandKw
     };
   });
 

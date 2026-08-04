@@ -67,9 +67,10 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
 /* fn2 */
 #fn2{flex:1;min-height:0;padding:22px 26px;display:flex;flex-direction:column;gap:12px}
-.detail-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:12px;grid-template-rows:1fr 1fr 1fr}
+.detail-grid{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr;gap:12px;grid-template-rows:1fr 1fr 1fr 1fr}
 .detail-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:8px 12px;display:flex;flex-direction:column;min-height:0}
 .detail-card.wide{grid-column:1/-1}
+.detail-card.tall{grid-row:span 2}
 .detail-title{font-size:10px;font-weight:700;color:var(--tx4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
 .ami-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100px;gap:10px;color:var(--tx4);font-size:11px;text-align:center;line-height:1.7}
 
@@ -136,6 +137,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   .page{height:auto;overflow:visible}
   .detail-grid{grid-template-columns:1fr}
   .detail-card.wide{grid-column:auto}
+  .detail-card.tall{grid-row:auto}
   .metrics{grid-template-columns:1fr 1fr 1fr}
   .sim-grid{grid-template-columns:1fr 1fr}
   .sim-grid .span2{grid-column:span 2}
@@ -222,7 +224,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="detail-card wide" id="dc-monthly"></div>
         <div class="detail-card" id="dc-seasonal"></div>
         <div class="detail-card" id="dc-dow"></div>
-        <div class="detail-card wide" id="dc-heatmap"></div>
+        <div class="detail-card tall" id="dc-heatmap"></div>
+        <div class="detail-card" id="dc-contract-chart"></div>
+        <div class="detail-card" id="dc-contract-summary"></div>
       </div>
     </section>
 
@@ -474,18 +478,18 @@ function getMonthSmp(month){
 /* ── 샘플 데이터 ── */
 var SAMPLE={
   monthly:[
-    {year:2024,month:1, kwh:52400,amount:7850000,gen:18200,eff:18200,selfRate:0.347},
-    {year:2024,month:2, kwh:48100,amount:7210000,gen:20100,eff:20100,selfRate:0.418},
-    {year:2024,month:3, kwh:44600,amount:6680000,gen:26800,eff:26800,selfRate:0.601},
-    {year:2024,month:4, kwh:39800,amount:5960000,gen:30200,eff:30200,selfRate:0.759},
-    {year:2024,month:5, kwh:42300,amount:6340000,gen:33500,eff:33500,selfRate:0.792},
-    {year:2024,month:6, kwh:58700,amount:8800000,gen:34800,eff:34800,selfRate:0.593},
-    {year:2024,month:7, kwh:72100,amount:10800000,gen:32200,eff:32200,selfRate:0.447},
-    {year:2024,month:8, kwh:69400,amount:10400000,gen:33600,eff:33600,selfRate:0.484},
-    {year:2024,month:9, kwh:51200,amount:7670000,gen:29400,eff:29400,selfRate:0.574},
-    {year:2024,month:10,kwh:43500,amount:6520000,gen:25100,eff:25100,selfRate:0.577},
-    {year:2024,month:11,kwh:47800,amount:7160000,gen:19400,eff:19400,selfRate:0.406},
-    {year:2024,month:12,kwh:54900,amount:8230000,gen:17100,eff:17100,selfRate:0.311}
+    {year:2024,month:1, kwh:52400,amount:7850000,gen:18200,eff:18200,selfRate:0.347,demandKw:150},
+    {year:2024,month:2, kwh:48100,amount:7210000,gen:20100,eff:20100,selfRate:0.418,demandKw:150},
+    {year:2024,month:3, kwh:44600,amount:6680000,gen:26800,eff:26800,selfRate:0.601,demandKw:130},
+    {year:2024,month:4, kwh:39800,amount:5960000,gen:30200,eff:30200,selfRate:0.759,demandKw:120},
+    {year:2024,month:5, kwh:42300,amount:6340000,gen:33500,eff:33500,selfRate:0.792,demandKw:125},
+    {year:2024,month:6, kwh:58700,amount:8800000,gen:34800,eff:34800,selfRate:0.593,demandKw:180},
+    {year:2024,month:7, kwh:72100,amount:10800000,gen:32200,eff:32200,selfRate:0.447,demandKw:215},
+    {year:2024,month:8, kwh:69400,amount:10400000,gen:33600,eff:33600,selfRate:0.484,demandKw:205},
+    {year:2024,month:9, kwh:51200,amount:7670000,gen:29400,eff:29400,selfRate:0.574,demandKw:155},
+    {year:2024,month:10,kwh:43500,amount:6520000,gen:25100,eff:25100,selfRate:0.577,demandKw:130},
+    {year:2024,month:11,kwh:47800,amount:7160000,gen:19400,eff:19400,selfRate:0.406,demandKw:145},
+    {year:2024,month:12,kwh:54900,amount:8230000,gen:17100,eff:17100,selfRate:0.311,demandKw:160}
   ],
   params:{lat:37.5665,lng:126.9780,cap:100,ppa:100,tariff:152,pr:0.82},
   ghi:{1:2.8,2:3.4,3:4.6,4:5.2,5:5.8,6:5.9,7:5.5,8:5.8,9:5.0,10:4.1,11:3.0,12:2.6},
@@ -889,6 +893,84 @@ function renderDetailHeatmap(){
     +valLbls+xLbls+'</g></svg></div>';
 }
 
+/* ── 기능 2: 요금적용전력(최대수요) 추이 — AMI 15분 구간 최대값×4 ── */
+function renderDetailContractChart(){
+  var el=document.getElementById('dc-contract-chart');
+  var hasDemand=monthly.some(function(m){return m.demandKw>0;});
+  if(!hasDemand){
+    el.innerHTML='<div class="detail-title">요금적용전력(최대수요) 추이</div>'
+      +'<div class="ami-placeholder">'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><path d="M3 17l6-6 4 4 8-8M21 7v6h-6"/></svg>'
+      +'AMI (15분 간격) 데이터 업로드 시 표시됩니다</div>';
+    return;
+  }
+
+  var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
+  var maxV=Math.max(contractKw,Math.max.apply(null,monthly.map(function(m){return m.demandKw||0;})))||1;
+  var W=400,H=90,pL=40,pR=10,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var gap=iW/monthly.length;
+  var labels='',grid='';
+
+  var contractY=pT+iH*(1-contractKw/maxV);
+  grid+='<line x1="'+pL+'" y1="'+contractY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+contractY.toFixed(1)+'" stroke="#da7756" stroke-width="1.2" stroke-dasharray="5,3"/>';
+  grid+='<text x="'+(W-pR)+'" y="'+(contractY-4).toFixed(1)+'" text-anchor="end" fill="#da7756" font-size="8">계약 '+fmt(contractKw)+'kW</text>';
+
+  [0,.5,1].forEach(function(y){
+    var py=pT+iH*(1-y);
+    grid+='<text x="'+(pL-4)+'" y="'+(py+3)+'" text-anchor="end" fill="#5a5a5a" font-size="8">'+Math.round(maxV*y)+'</text>';
+    if(y>0) grid+='<line x1="'+pL+'" y1="'+py+'" x2="'+(W-pR)+'" y2="'+py+'" stroke="#2e2e2e" stroke-width=".5"/>';
+  });
+
+  var pts=monthly.map(function(m,i){
+    var v=m.demandKw||0, cx=pL+i*gap+gap/2, cy=pT+iH*(1-v/maxV);
+    if(i%2===0) labels+='<text x="'+cx.toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#5a5a5a" font-size="7">'+m.month+'</text>';
+    return [cx,cy,v>contractKw];
+  });
+  var line=smoothLine(pts.map(function(p){return [p[0],p[1]];}));
+  var dots=pts.map(function(p){
+    return '<circle cx="'+p[0].toFixed(1)+'" cy="'+p[1].toFixed(1)+'" r="'+(p[2]?3.5:2.2)+'" fill="'+(p[2]?'#da7756':'rgba(180,180,180,.7)')+'"/>';
+  }).join('');
+
+  el.innerHTML='<div class="detail-title">요금적용전력(최대수요) 추이 (kW)</div>'
+    +'<div style="flex:1;min-height:0;overflow:hidden">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><g>'
+    +grid+'<path d="'+line+'" fill="none" stroke="rgba(180,180,180,.6)" stroke-width="1.5"/>'
+    +dots+labels+'</g></svg></div>';
+}
+
+/* ── 기능 2: 계약전력 초과 요약 ── */
+function renderDetailContractSummary(){
+  var el=document.getElementById('dc-contract-summary');
+  var hasDemand=monthly.some(function(m){return m.demandKw>0;});
+  if(!hasDemand){
+    el.innerHTML='<div class="detail-title">계약전력 초과 감시</div>'
+      +'<div class="ami-placeholder">'
+      +'<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3d3d3d" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>'
+      +'AMI (15분 간격) 데이터 업로드 시 표시됩니다</div>';
+    return;
+  }
+
+  var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
+  var demands=monthly.map(function(m){return m.demandKw||0;});
+  var overMonths=monthly.filter(function(m){return (m.demandKw||0)>contractKw;});
+  var maxDemand=Math.max.apply(null,demands);
+  var avgDemand=demands.reduce(function(a,b){return a+b;},0)/demands.length;
+  var maxM=monthly[demands.indexOf(maxDemand)];
+  var warn=overMonths.length>0;
+  var pct=contractKw>0?Math.round(maxDemand/contractKw*100):0;
+
+  el.innerHTML='<div class="detail-title">계약전력 초과 감시</div>'
+    +'<div style="font-size:12px;line-height:1.8;color:var(--tx2)">'
+    +'1년 중 <b style="color:'+(warn?'var(--orange)':'var(--tx1)')+'">'+overMonths.length+'개월</b> 동안 요금적용전력이 계약전력('+fmt(contractKw)+'kW)을 초과했습니다.<br>'
+    +(warn
+      ? '<span style="color:var(--orange)">초과 시 기본요금 할증 위험이 있습니다.</span>'
+      : '<span style="color:var(--tx4)">현재 계약전력 대비 여유가 있습니다.</span>')
+    +'</div>'
+    +'<div style="margin-top:auto;padding-top:8px;font-size:10px;color:var(--tx4)">'
+    +'평균 '+fmt(avgDemand)+'kW · 최대 '+fmt(maxDemand)+'kW ('+maxM.month+'월) · 계약전력 대비 '+pct+'%'
+    +'</div>';
+}
+
 /* ── 기능 3: 요금 비교 테이블 ── */
 function renderFeeTable(){
   var tariff     =KEPCO[document.getElementById('sel-tariff').value];
@@ -1108,6 +1190,8 @@ function runSim(){
   renderDetailSeasonal();
   renderDetailDow();
   renderDetailHeatmap();
+  renderDetailContractChart();
+  renderDetailContractSummary();
   requestAnimationFrame(function(){renderChart();});
   window.addEventListener('resize',renderChart);
 })();
