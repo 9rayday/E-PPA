@@ -396,17 +396,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
 <script>
 /* ── 망이용료 손실률 상수 (한전 전기공급약관 부록, 2024년 기준) ──
-   발전지역과 수요지역이 같은지 여부에 따라 손실률이 달라짐.
-   LOSS_RATE_SAME은 1차 자료 미검증 벤치마킹 참고값(추후 한전 공식 자료로 검증 필요). */
-var LOSS_RATE_SAME = 0.0199; // 발전지역 = 수요지역 손실률
-var LOSS_RATE_DIFF = 0.0352; // 발전지역 ≠ 수요지역 종합손실률 (기존값)
-
-var GEN_FEE_REGION   = {1.92:'비수도권', 1.25:'수도권', 1.20:'수도권', 1.90:'제주'};
-var TRANS_FEE_REGION = {1.42:'비수도권', 2.44:'수도권', 6.95:'제주'};
-function getLossRate(genFee, transFee) {
-  var g = GEN_FEE_REGION[genFee], t = TRANS_FEE_REGION[transFee];
-  return (g && t && g === t) ? LOSS_RATE_SAME : LOSS_RATE_DIFF;
-}
+   실제 분기 기준은 별표17(제3자간·직접 전력거래계약 손실 적용 기준)의
+   연계유형(송전/배전고압/배전저압) + 동일변전소 여부 8종이며, 수도권/비수도권
+   지역 일치 여부가 아님. 연계유형 입력을 받기 전까지는 종합손실률로 단순화. */
+var TRANS_LOSS = 0.0157; // 송전손실률 1.57%
+var COMB_LOSS  = 0.0352; // 종합손실률 3.52%
 
 /* ── KEPCO 요금 (2026-06-01) ── */
 var KEPCO = {
@@ -902,9 +896,8 @@ function renderFeeTable(){
   var genFee    =parseFloat(document.getElementById('inp-fee-gen').value)||0;
   var transFee  =parseFloat(document.getElementById('sel-transfee').value)||0;
   var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
-  /* 망이용료 사용요금 = 발전지역별 + (1-손실률)×수요지역별 + (1-손실률)×배전, 손실률은 발전/수요지역 일치 여부로 결정 */
-  var lossRate=getLossRate(genFee,transFee);
-  var netFeeUsage=genFee+(1-lossRate)*transFee+(1-lossRate)*distFee;
+  /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
+  var netFeeUsage=genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
   /* 망이용료 기본요금: 적용 구성요소에 따라 자동 합산 */
   var netFeeBasic=(genFee>0?667.36:0)+(transFee>0?667.61:0)
                  +(distFee===3.05?548:distFee===11.33?1066:0);
@@ -1021,8 +1014,7 @@ function runSim(){
   var genFee   =parseFloat(document.getElementById('inp-fee-gen').value)||0;
   var transFee =parseFloat(document.getElementById('sel-transfee').value)||0;
   var distFee  =parseFloat(document.getElementById('sel-distfee').value)||0;
-  var lossRate =getLossRate(genFee,transFee);
-  var netFee   =genFee+(1-lossRate)*transFee+(1-lossRate)*distFee;
+  var netFee   =genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
   var climate=parseFloat(document.getElementById('inp-climate').value)||9;
   var fuel   =parseFloat(document.getElementById('inp-fuel').value)||5;
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
