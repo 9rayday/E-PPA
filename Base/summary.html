@@ -131,6 +131,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .cum20-box{background:rgba(218,119,86,.10);border:1.5px solid rgba(218,119,86,.40);border-radius:var(--rs);padding:7px 16px;text-align:right;flex-shrink:0}
 .cum20-lbl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
 .cum20-num{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--orange);letter-spacing:-.5px;line-height:1}
+.cum20-num.sm{font-size:16px}
+.cum20-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .twenty-grid{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
 
 /* Responsive */
@@ -386,9 +388,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <!-- 20년 시뮬레이션 결과 -->
       <div class="cum20-header">
         <div class="grid-title">연도별 절감 현황</div>
-        <div class="cum20-box">
-          <div class="cum20-lbl">20년 누적 절감액</div>
-          <div class="cum20-num" id="r-cum20">—</div>
+        <div class="cum20-row">
+          <div class="cum20-box">
+            <div class="cum20-lbl">20년 누적 절감액</div>
+            <div class="cum20-num" id="r-cum20">—</div>
+          </div>
+          <div class="cum20-box">
+            <div class="cum20-lbl">20년 온실가스 감축</div>
+            <div class="cum20-num sm" id="r-co2">—</div>
+          </div>
+          <div class="cum20-box">
+            <div class="cum20-lbl">연간 소나무 환산</div>
+            <div class="cum20-num sm" id="r-trees">—</div>
+          </div>
         </div>
       </div>
       <div class="twenty-grid" id="twenty-grid"></div>
@@ -1129,7 +1141,7 @@ function runSim(){
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
   var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
-  var cum=0,years=[];
+  var cum=0,years=[],totalSelfKwh=0;
 
   for(var y=1;y<=20;y++){
     var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0, recCostY=0;
@@ -1138,6 +1150,7 @@ function runSim(){
       var genThisYear=m.eff*sF;                   // 설비 열화(연 0.5%) 반영 발전량
       var self  =Math.min(genThisYear,m.kwh);      // 자가소비분 (사용량이 상한)
       var excess=Math.max(0,genThisYear-m.kwh);    // 초과발전분
+      totalSelfKwh+=self;
 
       var er=energyRate(tariff,m.month)*kF;
       var vK=(er+(climate+fuel)*kF)*1.127;
@@ -1156,6 +1169,14 @@ function runSim(){
   }
 
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
+
+  /* ESG: 온실가스 감축량 · 소나무 환산 (연간 평균 자가소비량 기준) */
+  var CO2_FACTOR=0.4594;       // kgCO2/kWh — 국가 온실가스 통계 전력 배출계수
+  var PINE_CO2_PER_TREE=6.6;   // kgCO2/그루/년 — 소나무 연간 CO2 흡수량(산림청)
+  var totalCo2Ton=totalSelfKwh*CO2_FACTOR/1000;
+  var annualTrees=Math.round(totalSelfKwh/20*CO2_FACTOR/PINE_CO2_PER_TREE);
+  document.getElementById('r-co2').textContent=fmt(totalCo2Ton)+'tCO2';
+  document.getElementById('r-trees').textContent=fmt(annualTrees)+'그루';
 
   var maxSav=Math.max.apply(null,years.map(function(y){return y.sav;}));
   var minSav=Math.min.apply(null,years.map(function(y){return y.sav;}));
