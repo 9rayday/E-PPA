@@ -123,6 +123,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .fee-tbl th:first-child{text-align:left}
 .fee-tbl td{font-size:12px;color:var(--tx2);padding:9px 16px;border-bottom:1px solid var(--border);text-align:right;font-family:'JetBrains Mono',monospace;white-space:nowrap}
 .fee-tbl td:first-child{text-align:left;font-family:'Noto Sans KR',sans-serif;color:var(--tx3);white-space:normal}
+.fee-tbl.yearly{table-layout:fixed}
+.fee-tbl.yearly th,.fee-tbl.yearly td{padding:7px 6px;font-size:11px}
+.fee-tbl.yearly th:first-child,.fee-tbl.yearly td:first-child{width:9%}
 .fee-tbl tr:last-child td{border-bottom:none}
 .fee-tbl .sep-row td{background:var(--bg);height:6px;padding:0;border-bottom:none}
 .fee-tbl .section-row td{background:var(--bg3);font-weight:600;color:var(--tx2);font-family:'Noto Sans KR',sans-serif;font-size:11px}
@@ -1363,7 +1366,7 @@ function runSim(){
   rows+='</tbody>';
 
   document.getElementById('sim-yearly-table').innerHTML=
-    '<div class="fee-tbl-wrap"><table class="fee-tbl">'
+    '<div class="fee-tbl-wrap"><table class="fee-tbl yearly">'
     +'<thead><tr><th style="text-align:left">연차</th><th>①한전요금</th><th>②PPA사용분</th>'
     +'<th>③한전잔여</th><th>④REC매입비용</th><th>총비용</th><th>절감액</th><th>누적절감액</th></tr></thead>'
     +rows+'</table></div>';
