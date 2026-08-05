@@ -51,6 +51,10 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .narrative-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;font-size:12.5px;line-height:1.9;color:var(--tx2);flex-shrink:0}
 .narrative-box b{color:var(--tx1);font-weight:700}
 .narrative-box .warn{color:var(--orange)}
+.cap-suggest{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3);background:rgba(218,119,86,.06);border:1px solid rgba(218,119,86,.25);border-radius:var(--rs);padding:8px 12px;flex-shrink:0}
+.cap-suggest b{color:var(--tx1)}
+.cap-suggest-btn{margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.cap-suggest-btn:hover{background:rgba(218,119,86,.12)}
 .chart-wrap{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 14px;display:flex;flex-direction:column;min-height:200px}
 .chart-title{font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
 #chart-area{flex:1;min-height:0}
@@ -213,7 +217,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <span class="inp-unit">h/day</span>
           </div>
         </div>
+        <div class="assumption-field">
+          <div class="field-label">목표 RE100 비율</div>
+          <div class="inp-wrap">
+            <input class="inp-s" id="inp-target-re" type="number" min="0" max="100" step="1" placeholder="예: 50" oninput="updateCapSuggestion()">
+            <span class="inp-unit">%</span>
+          </div>
+        </div>
       </div>
+      <div class="cap-suggest" id="cap-suggest" style="display:none"></div>
       <div class="metrics" id="metric-cards"></div>
       <div class="narrative-box" id="narrative-summary"></div>
       <div class="chart-wrap">
@@ -694,6 +706,27 @@ function renderNarrative(){
   }
 
   el.innerHTML=html;
+}
+
+/* ── 기능 1: 목표 RE100 비율 → 필요 설비용량 역산 ── */
+function updateCapSuggestion(){
+  var el=document.getElementById('cap-suggest');
+  var pct=parseFloat(document.getElementById('inp-target-re').value);
+  if(!pct||pct<=0){ el.style.display='none'; el.innerHTML=''; return; }
+
+  var totalKwh=monthly.reduce(function(s,m){return s+m.kwh;},0);
+  var hours=parseFloat(document.getElementById('inp-hours').value)||3.5;
+  var targetKwh=totalKwh*pct/100;
+  var reqCap=hours>0?targetKwh/(hours*365):0;
+
+  el.style.display='flex';
+  el.innerHTML='연간 목표 재생에너지 전환량 <b>'+fmt(targetKwh)+'kWh</b> 달성에 필요한 설비용량은 약 <b style="color:var(--orange)">'+fmt(reqCap)+'kW</b>입니다.'
+    +'<button type="button" class="cap-suggest-btn" onclick="applyCapSuggestion('+reqCap+')">설비용량에 적용</button>';
+}
+
+function applyCapSuggestion(cap){
+  document.getElementById('inp-cap').value=Math.max(1,Math.round(cap));
+  onAssumptionChange();
 }
 
 /* ── 기능 1: 카드 ── */
