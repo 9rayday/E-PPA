@@ -48,6 +48,9 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .metric-value{font-size:22px;font-weight:700;color:var(--tx1);font-family:'JetBrains Mono',monospace;letter-spacing:-.5px}
 .metric-unit{font-size:11px;color:var(--tx3);margin-left:3px}
 .metric-sub{font-size:10px;color:var(--tx4);margin-top:5px;line-height:1.5}
+.narrative-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px 18px;font-size:12.5px;line-height:1.9;color:var(--tx2);flex-shrink:0}
+.narrative-box b{color:var(--tx1);font-weight:700}
+.narrative-box .warn{color:var(--orange)}
 .chart-wrap{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 14px;display:flex;flex-direction:column;min-height:200px}
 .chart-title{font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
 #chart-area{flex:1;min-height:0}
@@ -209,6 +212,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         </div>
       </div>
       <div class="metrics" id="metric-cards"></div>
+      <div class="narrative-box" id="narrative-summary"></div>
       <div class="chart-wrap">
         <div class="chart-title">전력데이터 분석</div>
         <div id="chart-area"></div>
@@ -316,7 +320,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="1.25">수도권 북부 (1.25원/kWh)</option>
               <option value="1.20">수도권 남부 (1.20원/kWh)</option>
               <option value="1.90">제주 (1.90원/kWh)</option>
-              <option value="0">해당없음 (0원/kWh)</option>
             </select>
           </div>
           <div>
@@ -325,7 +328,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="1.42" selected>비수도권 (1.42원/kWh)</option>
               <option value="2.44">수도권 (2.44원/kWh)</option>
               <option value="6.95">제주 (6.95원/kWh)</option>
-              <option value="0">해당없음 (0원/kWh)</option>
             </select>
           </div>
           <div>
@@ -354,7 +356,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
           <div>
             <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fee-adj" type="number" value="10.22" step="0.01" onchange="onAssumptionChange()">
+            <input class="inp-s" id="inp-fee-adj" type="number" value="9.8" step="0.01" onchange="onAssumptionChange()">
           </div>
         </div>
 
@@ -630,9 +632,46 @@ function updateEffMonthly(){
 function onAssumptionChange(){
   updateEffMonthly();
   renderMetrics();
+  renderNarrative();
   requestAnimationFrame(renderChart);
   renderFeeTable();
   runSim();
+}
+
+/* ── 기능 1: 자동 요약문 ── */
+function renderNarrative(){
+  var el=document.getElementById('narrative-summary');
+  if(!monthly.length){ el.innerHTML=''; return; }
+
+  var n=monthly.length;
+  var totalKwh=monthly.reduce(function(s,m){return s+m.kwh;},0);
+  var avgKwh=totalKwh/n;
+  var sorted=monthly.slice().sort(function(a,b){return a.kwh-b.kwh;});
+  var minM=sorted[0],maxM=sorted[sorted.length-1];
+  var first=monthly[0],last=monthly[monthly.length-1];
+
+  var html='분석 기간은 <b>'+first.year+'년 '+first.month+'월~'+last.year+'년 '+last.month+'월 ('+n+'개월)</b>이며, '
+    +'총 사용량은 <b>'+fmt(totalKwh)+'kWh</b>로 월평균 <b>'+fmt(avgKwh)+'kWh</b> 수준입니다.<br>'
+    +'가장 많이 사용한 달은 <b>'+maxM.year+'년 '+maxM.month+'월('+fmt(maxM.kwh)+'kWh)</b>, '
+    +'가장 적게 사용한 달은 <b>'+minM.year+'년 '+minM.month+'월('+fmt(minM.kwh)+'kWh)</b>입니다.';
+
+  var totalAmount=monthly.reduce(function(s,m){return s+(m.amount||0);},0);
+  if(totalAmount>0){
+    html+='<br>평균 전력단가는 <b>'+fmt(totalAmount/totalKwh)+'원/kWh</b>로 추정됩니다.';
+  }
+
+  var hasDemand=monthly.some(function(m){return m.demandKw>0;});
+  if(hasDemand){
+    var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
+    var demands=monthly.map(function(m){return m.demandKw||0;});
+    var avgDemand=demands.reduce(function(a,b){return a+b;},0)/n;
+    var overN=monthly.filter(function(m){return (m.demandKw||0)>contractKw;}).length;
+    var pct=contractKw>0?Math.round(avgDemand/contractKw*100):0;
+    html+='<br>요금적용전력 평균은 <b>'+fmt(avgDemand)+'kW</b>로 계약전력('+fmt(contractKw)+'kW) 대비 '+pct+'% 수준이며, '
+      +'계약전력을 초과한 달은 '+n+'개월 중 <b'+(overN>0?' class="warn"':'')+'>'+overN+'개월</b>입니다.';
+  }
+
+  el.innerHTML=html;
 }
 
 /* ── 기능 1: 카드 ── */
@@ -1023,7 +1062,7 @@ function renderFeeTable(){
   var climate    =parseFloat(document.getElementById('inp-climate').value)||9;
   var fuel       =parseFloat(document.getElementById('inp-fuel').value)||5;
   var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
-  var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
+  var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
   var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
   var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
@@ -1137,7 +1176,7 @@ function runSim(){
   var climate=parseFloat(document.getElementById('inp-climate').value)||9;
   var fuel   =parseFloat(document.getElementById('inp-fuel').value)||5;
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
-  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||10.22;
+  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
   var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
   var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
@@ -1232,6 +1271,7 @@ function runSim(){
   }
   updateEffMonthly();
   renderMetrics();
+  renderNarrative();
   renderFn2Charts();
   requestAnimationFrame(function(){renderChart();});
   window.addEventListener('resize',function(){
