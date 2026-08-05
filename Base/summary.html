@@ -1270,6 +1270,14 @@ function runSim(){
   var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
   var cum=0,years=[],totalSelfKwh=0;
 
+  /* 망이용료 기본요금(계약전력 초과분) — renderFeeTable()의 p2b와 동일 산식.
+     연도별로 escalation 없이 고정 적용(다른 PPA측 단가들과 동일 취급) */
+  var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
+  var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
+  var netFeeBasic=(genFee>0?667.36:0)+(transFee>0?667.61:0)
+                 +(distFee===3.05?548:distFee===11.33?1066:0);
+  var basicFeeAnnual=netFeeBasic*Math.max(0,cap-contractKw)*12*1.127;
+
   for(var y=1;y<=20;y++){
     var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0, recCostY=0;
     var kepcoYear=0, ppaYear=0;                     // PPA 미도입/도입 시 연간 절대 비용 (자가소비분 기준)
@@ -1296,6 +1304,8 @@ function runSim(){
 
     ann-=recCostY;                                 // REC 매입비용은 전기사용자 추가부담 → 절감액에서 차감
     ppaYear+=recCostY;                              // REC 매입비용은 PPA 도입 비용에 가산
+    ann-=basicFeeAnnual;                            // 망이용료 기본요금(계약전력 초과분)도 PPA 도입 비용에 반영
+    ppaYear+=basicFeeAnnual;
     cum+=ann;years.push({year:y,sav:ann,cum:cum,kepco:kepcoYear,ppa:ppaYear});
   }
 
