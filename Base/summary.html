@@ -439,6 +439,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       </div>
       <div class="twenty-grid" id="twenty-grid"></div>
       <div id="sim-milestone" style="font-size:11px;color:var(--tx4);margin-top:8px;line-height:1.7"></div>
+      <div class="grid-title" style="margin-top:16px;margin-bottom:8px">20년 상세 내역 (백만원)</div>
+      <div id="sim-yearly-table"></div>
 
     </section>
 
@@ -1288,7 +1290,8 @@ function runSim(){
     var b=computeYearlyFeeBreakdown(inp,kF,sF);
     totalSelfKwh+=b.totalSelfConsume;
     cum+=b.savings;
-    years.push({year:y,sav:b.savings,cum:cum,kepco:b.kTotal,ppa:b.totalCost});
+    years.push({year:y,sav:b.savings,cum:cum,kepco:b.kTotal,ppa:b.totalCost,
+      ppaCost:b.pTotal,remain:b.rTotal,rec:b.recSettlement});
   }
 
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
@@ -1340,6 +1343,30 @@ function runSim(){
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
     +bands+bars+xLbls+'</svg>';
+
+  /* 20년 상세 내역 표 (백만원) — ①한전요금/②PPA사용분/③한전잔여/④REC매입비용 */
+  function M(n){return (n/1e6).toLocaleString('ko-KR',{maximumFractionDigits:0});}
+  var rows='<tbody>';
+  years.forEach(function(yr,i){
+    var savCls=yr.sav>=0?'':' style="color:var(--tx3)"';
+    rows+='<tr'+(i===rateCrossIdx?' style="background:rgba(93,168,122,.08)"':i===breakEvenIdx?' style="background:rgba(218,119,86,.08)"':'')+'>'
+      +'<td style="text-align:left">'+yr.year+'년차</td>'
+      +'<td>'+M(yr.kepco)+'</td>'
+      +'<td>'+M(yr.ppaCost)+'</td>'
+      +'<td>'+M(yr.remain)+'</td>'
+      +'<td>'+M(yr.rec)+'</td>'
+      +'<td>'+M(yr.ppa)+'</td>'
+      +'<td'+savCls+'>'+M(yr.sav)+'</td>'
+      +'<td>'+M(yr.cum)+'</td>'
+      +'</tr>';
+  });
+  rows+='</tbody>';
+
+  document.getElementById('sim-yearly-table').innerHTML=
+    '<div class="fee-tbl-wrap"><table class="fee-tbl">'
+    +'<thead><tr><th style="text-align:left">연차</th><th>①한전요금</th><th>②PPA사용분</th>'
+    +'<th>③한전잔여</th><th>④REC매입비용</th><th>총비용</th><th>절감액</th><th>누적절감액</th></tr></thead>'
+    +rows+'</table></div>';
 }
 
 /* ── 초기화 ── */
