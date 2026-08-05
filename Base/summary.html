@@ -1167,7 +1167,10 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
   var kEnergy=0, rEnergy=0;
 
   effMonthly.forEach(function(m){
-    var genY  =(m.eff||0)*sF;
+    /* m.eff는 이미 min(gen,kwh)로 사용량에 클리핑된 값이라 초과발전 판정에 쓰면
+       genY-kwh가 절대 양수가 될 수 없음(REC 매입비용이 항상 0으로 계산되는 버그).
+       클리핑 전의 m.gen을 써야 초과발전이 제대로 잡힘. */
+    var genY  =(m.gen||0)*sF;
     var self  =Math.min(genY,m.kwh);        // 실제 상계된 자가소비분 (사용량 초과 불가)
     var remain=Math.max(0,m.kwh-genY);      // 한전에서 계속 사야 하는 잔여분
     var excess=Math.max(0,genY-m.kwh);      // 사용량 초과 발전분 → REC 매입 대상
