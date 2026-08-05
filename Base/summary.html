@@ -1135,117 +1135,137 @@ function renderPpaStructure(){
     +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">※ 부가가치세 및 PPA 전력손실분은 단가에 포함되지 않습니다.</div>';
 }
 
-/* ── 기능 3: 요금 비교 테이블 ── */
-function renderFeeTable(){
-  var tariff     =KEPCO[document.getElementById('sel-tariff').value];
-  var contractKw =parseFloat(document.getElementById('inp-contract').value)||0;
+/* ── 기능 3: 요금/시뮬레이션 공용 계산 ── 두 곳(요금표·20년표)이 항상 같은 결과를
+   내도록 입력 읽기와 연간 비용 산출을 단일 함수로 통일 */
+function readFeeInputs(){
   var genFee    =parseFloat(document.getElementById('inp-fee-gen').value)||0;
   var transFee  =parseFloat(document.getElementById('sel-transfee').value)||0;
   var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
-  /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
-  var netFeeUsage=genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
-  /* 망이용료 기본요금: 적용 구성요소에 따라 자동 합산 */
-  var netFeeBasic=(genFee>0?667.36:0)+(transFee>0?667.61:0)
-                 +(distFee===3.05?548:distFee===11.33?1066:0);
-  var climate    =parseFloat(document.getElementById('inp-climate').value)||9;
-  var fuel       =parseFloat(document.getElementById('inp-fuel').value)||5;
-  var feeTradeR  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
-  var feeAdjR    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
-  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
-  var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
-  var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
+  return {
+    tariff:KEPCO[document.getElementById('sel-tariff').value],
+    contractKw:parseFloat(document.getElementById('inp-contract').value)||0,
+    genFee:genFee, transFee:transFee, distFee:distFee,
+    /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
+    netFeeUsage:genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee,
+    /* 망이용료 기본요금: 적용 구성요소에 따라 자동 합산 */
+    netFeeBasic:(genFee>0?667.36:0)+(transFee>0?667.61:0)
+               +(distFee===3.05?548:distFee===11.33?1066:0),
+    climate:parseFloat(document.getElementById('inp-climate').value)||9,
+    fuel:parseFloat(document.getElementById('inp-fuel').value)||5,
+    feeTradeR:parseFloat(document.getElementById('inp-fee-trade').value)||0.1193,
+    feeAdjR:parseFloat(document.getElementById('inp-fee-adj').value)||9.8,
+    ppa:parseFloat(document.getElementById('inp-ppa').value)||params.ppa,
+    cap:parseFloat(document.getElementById('inp-cap').value)||params.cap,
+    recWeight:1.2 // REC 가중치 고정 (태양광 일반)
+  };
+}
 
-  var totalKwh=effMonthly.reduce(function(s,m){return s+m.kwh;},0);
+/* kF=한전요금 escalation 배수, sF=설비 열화 배수 (둘 다 1이면 현재/1년차) */
+function computeYearlyFeeBreakdown(inp,kF,sF){
+  var climF=inp.climate*kF, fuelF=inp.fuel*kF;
+  var totalKwh=0, totalSelfConsume=0, remainKwh=0, totalExcess=0, recSettlement=0;
+  var kEnergy=0, rEnergy=0;
 
-  /* 월별로 먼저 0 하한 처리하여 자가소비분/잔여분/초과분을 분리 */
-  var totalSelfConsume=0, remainKwh=0, totalExcess=0, recSettlement=0;
   effMonthly.forEach(function(m){
-    var self  =Math.min(m.eff,m.kwh);      // 실제 상계된 자가소비분 (사용량 초과 불가)
-    var remain=Math.max(0,m.kwh-m.eff);    // 한전에서 계속 사야 하는 잔여분
-    var excess=Math.max(0,m.eff-m.kwh);    // 사용량 초과 발전분 → REC 매입 대상
-    totalSelfConsume+=self;
-    remainKwh+=remain;
-    totalExcess+=excess;
+    var genY  =(m.eff||0)*sF;
+    var self  =Math.min(genY,m.kwh);        // 실제 상계된 자가소비분 (사용량 초과 불가)
+    var remain=Math.max(0,m.kwh-genY);      // 한전에서 계속 사야 하는 잔여분
+    var excess=Math.max(0,genY-m.kwh);      // 사용량 초과 발전분 → REC 매입 대상
+    totalKwh+=m.kwh; totalSelfConsume+=self; remainKwh+=remain; totalExcess+=excess;
+
+    var rate=energyRate(inp.tariff,m.month)*kF;
+    kEnergy+=rate*m.kwh;
+    rEnergy+=rate*remain;
 
     if(excess>0){
       var monthSmp=getMonthSmp(m.month);
-      var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
-      recSettlement+=unitDiff*excess*recWeight;
+      var unitDiff=Math.max(0,inp.ppa-monthSmp); // PPA단가 - SMP, SMP가 높으면 0원
+      recSettlement+=unitDiff*excess*inp.recWeight;
     }
   });
-  var totalEff=totalSelfConsume; /* PPA 전력량요금은 자가소비분 기준으로만 과금 */
 
-  /* 한전 전체 */
-  var kBasic =tariff.basicRate*contractKw*12;
-  var kEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*m.kwh;},0);
-  var kClim  =climate*totalKwh,kFuel=fuel*totalKwh;
-  var kSub   =kBasic+kEnergy+kClim+kFuel;
-  var kVat   =Math.round(kSub*0.10/10)*10;
-  var kFund  =Math.floor(kSub*0.027/10)*10;
-  var kTotal =kSub+kVat+kFund;
+  /* 한전 전체 (PPA 미도입 기준) */
+  var kBasic=inp.tariff.basicRate*inp.contractKw*12*kF;
+  var kClim =climF*totalKwh, kFuel=fuelF*totalKwh;
+  var kSub  =kBasic+kEnergy+kClim+kFuel;
+  var kVat  =Math.round(kSub*0.10/10)*10;
+  var kFund =Math.floor(kSub*0.027/10)*10;
+  var kTotal=kSub+kVat+kFund;
 
   /* PPA (자가소비분 기준) */
-  var p1 =ppa*totalEff;
-  var p2b=netFeeBasic*Math.max(0,cap-contractKw)*12;
-  var p2u=netFeeUsage*totalEff,p2=p2b+p2u;
-  var p3 =feeTradeR*totalEff,p4=feeAdjR*totalEff;
-  var pSub=p1+p2+p3+p4,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
+  var p1 =inp.ppa*totalSelfConsume;
+  var p2b=inp.netFeeBasic*Math.max(0,inp.cap-inp.contractKw)*12;
+  var p2u=inp.netFeeUsage*totalSelfConsume;
+  var p3 =inp.feeTradeR*totalSelfConsume, p4=inp.feeAdjR*totalSelfConsume;
+  var pSub=p1+p2b+p2u+p3+p4,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
 
-  /* 한전 잔여 (월별 0-하한 처리된 remainKwh 사용) */
-  var rBasic =kBasic;
-  var rEnergy=effMonthly.reduce(function(s,m){return s+energyRate(tariff,m.month)*Math.max(0,m.kwh-m.eff);},0);
-  var rClim  =climate*remainKwh,rFuel=fuel*remainKwh;
-  var rSub   =rBasic+rEnergy+rClim+rFuel;
-  var rVat   =Math.round(rSub*0.10/10)*10;
-  var rFund  =Math.floor(rSub*0.027/10)*10;
-  var rTotal =rSub+rVat+rFund;
+  /* 한전 잔여 */
+  var rBasic=kBasic;
+  var rClim =climF*remainKwh, rFuel=fuelF*remainKwh;
+  var rSub  =rBasic+rEnergy+rClim+rFuel;
+  var rVat  =Math.round(rSub*0.10/10)*10;
+  var rFund =Math.floor(rSub*0.027/10)*10;
+  var rTotal=rSub+rVat+rFund;
 
-  /* 총비용: PPA + 한전잔여 + REC 매입비용(전기사용자 추가 부담) */
   var totalCost=pTotal+rTotal+recSettlement;
-  var savings=kTotal-totalCost;
+
+  return {
+    totalKwh:totalKwh,totalSelfConsume:totalSelfConsume,remainKwh:remainKwh,totalExcess:totalExcess,
+    kBasic:kBasic,kEnergy:kEnergy,kClim:kClim,kFuel:kFuel,kVat:kVat,kFund:kFund,kTotal:kTotal,
+    p1:p1,p2b:p2b,p2u:p2u,p3:p3,p4:p4,pSub:pSub,p5:p5,p6:p6,pTotal:pTotal,
+    rBasic:rBasic,rEnergy:rEnergy,rClim:rClim,rFuel:rFuel,rVat:rVat,rFund:rFund,rTotal:rTotal,
+    recSettlement:recSettlement,totalCost:totalCost,
+    savings:kTotal-totalCost           // PPA 미도입 - (PPA사용분+한전잔여+REC매입)
+  };
+}
+
+/* ── 기능 3: 요금 비교 테이블 ── */
+function renderFeeTable(){
+  var inp=readFeeInputs();
+  var b=computeYearlyFeeBreakdown(inp,1,1);
   function W(n){return fmt(Math.round(n));}
 
   var body='<tbody>';
   body+='<tr class="section-row"><td colspan="2">① 한전 전기요금 전체 (PPA 미도입 기준)</td></tr>';
-  body+='<tr><td style="padding-left:22px">기본요금 ('+tariff.basicRate.toLocaleString('ko-KR')+'원/kW × '+contractKw.toLocaleString('ko-KR')+'kW × 12개월)</td><td>'+W(kBasic)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력량 요금 <span style="color:var(--tx4);font-size:10px">(TOU: 경부하 20% · 중간 45% · 최대 35% 추정)</span></td><td>'+W(kEnergy)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">기후환경요금 ('+climate+'원/kWh × '+fmt(totalKwh)+'kWh)</td><td>'+W(kClim)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">연료비조정요금 ('+fuel+'원/kWh × '+fmt(totalKwh)+'kWh)</td><td>'+W(kFuel)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">부가가치세 10% <span style="color:var(--tx4);font-size:10px">(원미만 4사5입)</span></td><td>'+W(kVat)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력산업기반기금 2.7% <span style="color:var(--tx4);font-size:10px">(10원미만 절사)</span></td><td>'+W(kFund)+'</td></tr>';
-  body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(kTotal)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기본요금 ('+inp.tariff.basicRate.toLocaleString('ko-KR')+'원/kW × '+inp.contractKw.toLocaleString('ko-KR')+'kW × 12개월)</td><td>'+W(b.kBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력량 요금 <span style="color:var(--tx4);font-size:10px">(TOU: 경부하 20% · 중간 45% · 최대 35% 추정)</span></td><td>'+W(b.kEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기후환경요금 ('+inp.climate+'원/kWh × '+fmt(b.totalKwh)+'kWh)</td><td>'+W(b.kClim)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">연료비조정요금 ('+inp.fuel+'원/kWh × '+fmt(b.totalKwh)+'kWh)</td><td>'+W(b.kFuel)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">부가가치세 10% <span style="color:var(--tx4);font-size:10px">(원미만 4사5입)</span></td><td>'+W(b.kVat)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력산업기반기금 2.7% <span style="color:var(--tx4);font-size:10px">(10원미만 절사)</span></td><td>'+W(b.kFund)+'</td></tr>';
+  body+='<tr class="total-row"><td>한전 요금 합계</td><td>'+W(b.kTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
-  body+='<tr class="section-row"><td colspan="2">② PPA 사용분 ('+(totalEff/1000).toFixed(1)+'MWh)</td></tr>';
-  body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p1)+'</td></tr>';
+  body+='<tr class="section-row"><td colspan="2">② PPA 사용분 ('+(b.totalSelfConsume/1000).toFixed(1)+'MWh)</td></tr>';
+  body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+inp.ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(b.totalSelfConsume)+'kWh)</td><td>'+W(b.p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
-  var p2bKw=Math.max(0,cap-contractKw);
-  body+='<tr><td style="padding-left:38px">기본요금 ('+netFeeBasic.toFixed(0)+'원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(p2b)+'</td></tr>';
-  body+='<tr><td style="padding-left:38px">사용요금 ('+netFeeUsage.toFixed(2)+'원/kWh × '+fmt(totalEff)+'kWh)</td><td>'+W(p2u)+'</td></tr>';
-  body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(p2)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+feeTradeR+'원/kWh)</td><td>'+W(p3)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+feeAdjR+'원/kWh)</td><td>'+W(p4)+'</td></tr>';
-  body+='<tr style="background:var(--bg3)"><td style="color:var(--tx4);font-size:10px;padding-left:22px">PPA 소계 (세전)</td><td style="color:var(--tx4)">'+W(pSub)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">⑤ 부가가치세 10%</td><td>'+W(p5)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">⑥ 전력산업기반기금 2.7%</td><td>'+W(p6)+'</td></tr>';
-  body+='<tr class="total-row"><td>PPA 합계</td><td>'+W(pTotal)+'</td></tr>';
+  var p2bKw=Math.max(0,inp.cap-inp.contractKw);
+  body+='<tr><td style="padding-left:38px">기본요금 ('+inp.netFeeBasic.toFixed(0)+'원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(b.p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px">사용요금 ('+inp.netFeeUsage.toFixed(2)+'원/kWh × '+fmt(b.totalSelfConsume)+'kWh)</td><td>'+W(b.p2u)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(b.p2b+b.p2u)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+inp.feeTradeR+'원/kWh)</td><td>'+W(b.p3)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+inp.feeAdjR+'원/kWh)</td><td>'+W(b.p4)+'</td></tr>';
+  body+='<tr style="background:var(--bg3)"><td style="color:var(--tx4);font-size:10px;padding-left:22px">PPA 소계 (세전)</td><td style="color:var(--tx4)">'+W(b.pSub)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">⑤ 부가가치세 10%</td><td>'+W(b.p5)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">⑥ 전력산업기반기금 2.7%</td><td>'+W(b.p6)+'</td></tr>';
+  body+='<tr class="total-row"><td>PPA 합계</td><td>'+W(b.pTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
   body+='<tr class="section-row"><td colspan="2">③ 한전 잔여 전기요금 (태양광 제외분)</td></tr>';
-  body+='<tr><td style="padding-left:22px">기본요금</td><td>'+W(rBasic)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력량 요금</td><td>'+W(rEnergy)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">기후환경+연료비조정</td><td>'+W(rClim+rFuel)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">부가가치세+기금</td><td>'+W(rVat+rFund)+'</td></tr>';
-  body+='<tr class="total-row"><td>한전 잔여 합계</td><td>'+W(rTotal)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기본요금</td><td>'+W(b.rBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력량 요금</td><td>'+W(b.rEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">기후환경+연료비조정</td><td>'+W(b.rClim+b.rFuel)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">부가가치세+기금</td><td>'+W(b.rVat+b.rFund)+'</td></tr>';
+  body+='<tr class="total-row"><td>한전 잔여 합계</td><td>'+W(b.rTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
-  body+='<tr class="section-row"><td colspan="2">④ 초과발전 REC 매입비용 (초과 '+fmt(totalExcess)+'kWh · 전기사용자 매입)</td></tr>';
-  body+='<tr><td style="padding-left:22px">REC 수량 ('+fmt(totalExcess)+'kWh ÷ 1,000 × 가중치 '+recWeight+')</td><td>'+(totalExcess/1000*recWeight).toFixed(2)+' REC</td></tr>';
-  body+='<tr><td style="padding-left:22px">매입비용 (PPA단가 '+fmt(ppa)+'원 − 월SMP, 0원 하한)</td><td>'+W(recSettlement)+'</td></tr>';
+  body+='<tr class="section-row"><td colspan="2">④ 초과발전 REC 매입비용 (초과 '+fmt(b.totalExcess)+'kWh · 전기사용자 매입)</td></tr>';
+  body+='<tr><td style="padding-left:22px">REC 수량 ('+fmt(b.totalExcess)+'kWh ÷ 1,000 × 가중치 '+inp.recWeight+')</td><td>'+(b.totalExcess/1000*inp.recWeight).toFixed(2)+' REC</td></tr>';
+  body+='<tr><td style="padding-left:22px">매입비용 (PPA단가 '+fmt(inp.ppa)+'원 − 월SMP, 0원 하한)</td><td>'+W(b.recSettlement)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
-  body+='<tr style="font-weight:600;background:var(--bg3)"><td>총 비용 합계 (PPA + 잔여 한전 + REC매입)</td><td>'+W(totalCost)+'</td></tr>';
-  body+='<tr class="sav-row"><td>절감액 (연간)</td><td>'+fmt(Math.round(savings))+'원</td></tr>';
+  body+='<tr style="font-weight:600;background:var(--bg3)"><td>총 비용 합계 (PPA + 잔여 한전 + REC매입)</td><td>'+W(b.totalCost)+'</td></tr>';
+  body+='<tr class="sav-row"><td>절감액 (연간)</td><td>'+fmt(Math.round(b.savings))+'원</td></tr>';
   body+='</tbody>';
 
   document.getElementById('fee-table-wrap').innerHTML=
@@ -1256,57 +1276,16 @@ function renderFeeTable(){
 
 /* ── 20년 시뮬레이션 ── */
 function runSim(){
-  var tariff =KEPCO[document.getElementById('sel-tariff').value];
-  var genFee   =parseFloat(document.getElementById('inp-fee-gen').value)||0;
-  var transFee =parseFloat(document.getElementById('sel-transfee').value)||0;
-  var distFee  =parseFloat(document.getElementById('sel-distfee').value)||0;
-  var netFee   =genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
-  var climate=parseFloat(document.getElementById('inp-climate').value)||9;
-  var fuel   =parseFloat(document.getElementById('inp-fuel').value)||5;
-  var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
-  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
-  var esc    =parseFloat(document.getElementById('sld-esc').value)/100;
-  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
-  var recWeight=1.2; // REC 가중치 고정 (태양광 일반)
+  var inp=readFeeInputs();
+  var esc=parseFloat(document.getElementById('sld-esc').value)/100;
   var cum=0,years=[],totalSelfKwh=0;
 
-  /* 망이용료 기본요금(계약전력 초과분) — renderFeeTable()의 p2b와 동일 산식.
-     연도별로 escalation 없이 고정 적용(다른 PPA측 단가들과 동일 취급) */
-  var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
-  var cap=parseFloat(document.getElementById('inp-cap').value)||params.cap;
-  var netFeeBasic=(genFee>0?667.36:0)+(transFee>0?667.61:0)
-                 +(distFee===3.05?548:distFee===11.33?1066:0);
-  var basicFeeAnnual=netFeeBasic*Math.max(0,cap-contractKw)*12*1.127;
-
   for(var y=1;y<=20;y++){
-    var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0, recCostY=0;
-    var kepcoYear=0, ppaYear=0;                     // PPA 미도입/도입 시 연간 절대 비용 (자가소비분 기준)
-
-    effMonthly.forEach(function(m){
-      var genThisYear=m.eff*sF;                   // 설비 열화(연 0.5%) 반영 발전량
-      var self  =Math.min(genThisYear,m.kwh);      // 자가소비분 (사용량이 상한)
-      var excess=Math.max(0,genThisYear-m.kwh);    // 초과발전분
-      totalSelfKwh+=self;
-
-      var er=energyRate(tariff,m.month)*kF;
-      var vK=(er+(climate+fuel)*kF)*1.127;
-      var vP=(ppa+netFee+trade+adj)*1.127;
-      ann+=(vK-vP)*self;                           // 자가소비분에 대해서만 단가차 적용
-      kepcoYear+=vK*self;                          // PPA 미도입 시 자가소비분을 전부 한전에서 샀을 때 비용
-      ppaYear+=vP*self;                             // PPA 도입 시 자가소비분 비용
-
-      if(excess>0){
-        var monthSmp=getMonthSmp(m.month);         // 현재: 수동입력 SMP 고정 사용 (연도별 변동 미반영)
-        var unitDiff=Math.max(0,ppa-monthSmp);        // PPA단가 - SMP, SMP가 높으면 0원
-        recCostY+=unitDiff*excess*recWeight;
-      }
-    });
-
-    ann-=recCostY;                                 // REC 매입비용은 전기사용자 추가부담 → 절감액에서 차감
-    ppaYear+=recCostY;                              // REC 매입비용은 PPA 도입 비용에 가산
-    ann-=basicFeeAnnual;                            // 망이용료 기본요금(계약전력 초과분)도 PPA 도입 비용에 반영
-    ppaYear+=basicFeeAnnual;
-    cum+=ann;years.push({year:y,sav:ann,cum:cum,kepco:kepcoYear,ppa:ppaYear});
+    var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1); // 한전요금 상승 / 설비 열화(연 0.5%)
+    var b=computeYearlyFeeBreakdown(inp,kF,sF);
+    totalSelfKwh+=b.totalSelfConsume;
+    cum+=b.savings;
+    years.push({year:y,sav:b.savings,cum:cum,kepco:b.kTotal,ppa:b.totalCost});
   }
 
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
