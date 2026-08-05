@@ -385,6 +385,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
       </div>
 
+      <!-- PPA 단가 구조 -->
+      <div class="grid-title" style="margin-bottom:8px">PPA 단가 구조 (원/kWh)</div>
+      <div id="ppa-structure" style="margin-bottom:16px"></div>
+
       <!-- 요금 비교 테이블 -->
       <div id="fee-table-wrap"></div>
 
@@ -651,6 +655,7 @@ function onAssumptionChange(){
   renderMetrics();
   renderNarrative();
   requestAnimationFrame(renderChart);
+  renderPpaStructure();
   renderFeeTable();
   runSim();
 }
@@ -1062,6 +1067,39 @@ function renderFn2Charts(){
   renderDetailHeatmap();
   renderDetailContractChart();
   renderDetailContractSummary();
+}
+
+/* ── 기능 3: PPA 단가 구조 (원/kWh) ── */
+function renderPpaStructure(){
+  var genFee    =parseFloat(document.getElementById('inp-fee-gen').value)||0;
+  var transFee  =parseFloat(document.getElementById('sel-transfee').value)||0;
+  var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
+  var netFeeUsage=genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
+  var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
+  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
+  var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
+
+  var sub=ppa+netFeeUsage+trade+adj;
+  var fund=sub*0.027;
+  var finalUnit=sub+fund;
+
+  function W2(n){return n.toFixed(4).replace(/\.?0+$/,'')+'원';}
+
+  var body='<tbody>'
+    +'<tr><td>전력단가</td><td>'+W2(ppa)+'</td></tr>'
+    +'<tr><td>망이용 요금</td><td>'+W2(netFeeUsage)+'</td></tr>'
+    +'<tr><td style="padding-left:22px;color:var(--tx4);font-size:11px">배전이용요금</td><td style="color:var(--tx4);font-size:11px">'+W2(distFee)+'</td></tr>'
+    +'<tr><td style="padding-left:22px;color:var(--tx4);font-size:11px">발전지역 송전요금</td><td style="color:var(--tx4);font-size:11px">'+W2(genFee)+'</td></tr>'
+    +'<tr><td style="padding-left:22px;color:var(--tx4);font-size:11px">수요지역 송전요금</td><td style="color:var(--tx4);font-size:11px">'+W2(transFee)+'</td></tr>'
+    +'<tr><td>부가정산금</td><td>'+W2(adj)+'</td></tr>'
+    +'<tr><td>전력거래 수수료</td><td>'+W2(trade)+'</td></tr>'
+    +'<tr><td>전력산업기반기금</td><td>'+W2(fund)+'</td></tr>'
+    +'<tr class="total-row"><td>최종 PPA 단가</td><td>'+W2(finalUnit)+'/kWh</td></tr>'
+    +'</tbody>';
+
+  document.getElementById('ppa-structure').innerHTML=
+    '<div class="fee-tbl-wrap"><table class="fee-tbl">'+body+'</table></div>'
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">※ 부가가치세 및 PPA 전력손실분은 단가에 포함되지 않습니다.</div>';
 }
 
 /* ── 기능 3: 요금 비교 테이블 ── */
