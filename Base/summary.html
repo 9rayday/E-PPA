@@ -649,13 +649,13 @@ function updateEffMonthly(){
   var c=parseFloat(document.getElementById('inp-cap').value)||0;
   var h=parseFloat(document.getElementById('inp-hours').value)||0;
   if(c>0&&h>0){
-    var newAnn=c*h*365; /* h/day × 365 → kWh/년 */
-    var orig=monthly.reduce(function(s,m){return s+m.eff;},0);
-    var sc=orig>0?newAnn/orig:1;
+    var newAnn=c*h*365; /* h/day × 365 → kWh/년 (신규 목표 발전량) */
+    var origGen=monthly.reduce(function(s,m){return s+m.gen;},0); /* 발전량 기준 스케일 — eff는 이미 사용량에 클리핑된 값이라 기준으로 쓰면 안 됨 */
+    var sc=origGen>0?newAnn/origGen:1;
     effMonthly=monthly.map(function(m){
-      var e=Math.round(m.eff*sc);
       var g=Math.round(m.gen*sc);
-      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:Math.min(1,e/m.kwh)};
+      var e=Math.min(g,m.kwh); /* 스케일된 발전량을 사용량으로 다시 클리핑 — eff가 kwh를 넘는 걸 방지 */
+      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0};
     });
   } else {
     effMonthly=monthly;
