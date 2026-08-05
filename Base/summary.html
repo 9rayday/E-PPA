@@ -131,7 +131,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 /* 20y grid */
 .cum20-header{display:flex;align-items:center;justify-content:space-between;margin-top:14px;margin-bottom:8px}
 .grid-title{font-size:10px;font-weight:700;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px}
-.cum20-box{background:rgba(218,119,86,.10);border:1.5px solid rgba(218,119,86,.40);border-radius:var(--rs);padding:7px 16px;text-align:right;flex-shrink:0}
+.cum20-box{background:rgba(218,119,86,.10);border:1.5px solid rgba(218,119,86,.40);border-radius:var(--rs);padding:8px 14px;display:flex;align-items:center;gap:10px;width:168px;flex-shrink:0}
+.cum20-icon{width:30px;height:30px;flex-shrink:0}
+.cum20-icon svg{width:100%;height:100%;display:block}
+.cum20-text{display:flex;flex-direction:column;align-items:flex-start;min-width:0}
 .cum20-lbl{font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:3px}
 .cum20-num{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--orange);letter-spacing:-.5px;line-height:1}
 .cum20-num.sm{font-size:16px}
@@ -392,16 +395,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         <div class="grid-title">연도별 절감 현황</div>
         <div class="cum20-row">
           <div class="cum20-box">
-            <div class="cum20-lbl">20년 누적 절감액</div>
-            <div class="cum20-num" id="r-cum20">—</div>
+            <div class="cum20-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="var(--orange)"/><path d="M12 6.5v9m0 0l-3.2-3.2M12 15.5l3.2-3.2" stroke="var(--bg2)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg></div>
+            <div class="cum20-text">
+              <div class="cum20-lbl">20년 누적 절감액</div>
+              <div class="cum20-num" id="r-cum20">—</div>
+            </div>
           </div>
           <div class="cum20-box">
-            <div class="cum20-lbl">20년 온실가스 감축</div>
-            <div class="cum20-num sm" id="r-co2">—</div>
+            <div class="cum20-icon"><svg viewBox="0 0 24 24"><path d="M12 21C12 21 4 17 4 9C4 5 7 2 12 2C17 2 20 5 20 9C20 17 12 21 12 21Z" fill="var(--green)"/><path d="M12 20V9" stroke="var(--bg2)" stroke-width="1.4" stroke-linecap="round"/></svg></div>
+            <div class="cum20-text">
+              <div class="cum20-lbl">20년 온실가스 감축</div>
+              <div class="cum20-num sm" id="r-co2">—</div>
+            </div>
           </div>
           <div class="cum20-box">
-            <div class="cum20-lbl">연간 소나무 환산</div>
-            <div class="cum20-num sm" id="r-trees">—</div>
+            <div class="cum20-icon"><svg viewBox="0 0 24 24"><polygon points="12,2 18,10 15,10 20,17 4,17 9,10 6,10" fill="var(--green)"/><rect x="10.5" y="17" width="3" height="4" fill="var(--green)"/></svg></div>
+            <div class="cum20-text">
+              <div class="cum20-lbl">연간 소나무 환산</div>
+              <div class="cum20-num sm" id="r-trees">—</div>
+            </div>
           </div>
         </div>
       </div>
