@@ -405,7 +405,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
       </div>
+      <div class="chart-legend" id="sim-legend" style="margin-top:0;margin-bottom:8px">
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,180,.45)"></div>PPA 미도입 (한전)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:rgba(218,119,86,.75)"></div>PPA 도입</div>
+      </div>
       <div class="twenty-grid" id="twenty-grid"></div>
+      <div id="sim-milestone" style="font-size:11px;color:var(--tx4);margin-top:8px;line-height:1.7"></div>
 
     </section>
 
@@ -1184,6 +1189,7 @@ function runSim(){
 
   for(var y=1;y<=20;y++){
     var kF=Math.pow(1+esc,y-1), sF=Math.pow(0.995,y-1), ann=0, recCostY=0;
+    var kepcoYear=0, ppaYear=0;                     // PPA 미도입/도입 시 연간 절대 비용 (자가소비분 기준)
 
     effMonthly.forEach(function(m){
       var genThisYear=m.eff*sF;                   // 설비 열화(연 0.5%) 반영 발전량
@@ -1195,6 +1201,8 @@ function runSim(){
       var vK=(er+(climate+fuel)*kF)*1.127;
       var vP=(ppa+netFee+trade+adj)*1.127;
       ann+=(vK-vP)*self;                           // 자가소비분에 대해서만 단가차 적용
+      kepcoYear+=vK*self;                          // PPA 미도입 시 자가소비분을 전부 한전에서 샀을 때 비용
+      ppaYear+=vP*self;                             // PPA 도입 시 자가소비분 비용
 
       if(excess>0){
         var monthSmp=getMonthSmp(m.month);         // 현재: 수동입력 SMP 고정 사용 (연도별 변동 미반영)
@@ -1204,7 +1212,8 @@ function runSim(){
     });
 
     ann-=recCostY;                                 // REC 매입비용은 전기사용자 추가부담 → 절감액에서 차감
-    cum+=ann;years.push({year:y,sav:ann,cum:cum});
+    ppaYear+=recCostY;                              // REC 매입비용은 PPA 도입 비용에 가산
+    cum+=ann;years.push({year:y,sav:ann,cum:cum,kepco:kepcoYear,ppa:ppaYear});
   }
 
   document.getElementById('r-cum20').textContent=fmtM(years[19].cum);
@@ -1217,44 +1226,45 @@ function runSim(){
   document.getElementById('r-co2').textContent=fmt(totalCo2Ton)+'tCO2';
   document.getElementById('r-trees').textContent=fmt(annualTrees)+'그루';
 
-  var maxSav=Math.max.apply(null,years.map(function(y){return y.sav;}));
-  var minSav=Math.min.apply(null,years.map(function(y){return y.sav;}));
-  var posMax=Math.max(maxSav,0),negMin=Math.min(minSav,0);
-  var barRange=posMax-negMin||1;
+  /* 마일스톤: PPA 단가 역전점(연간 절감액 최초 흑자) · 손익분기점(누적 절감액 최초 흑자) */
+  var rateCrossIdx=-1,breakEvenIdx=-1;
+  for(var _k=0;_k<years.length;_k++){
+    if(rateCrossIdx<0 && years[_k].sav>=0) rateCrossIdx=_k;
+    if(breakEvenIdx<0 && years[_k].cum>=0) breakEvenIdx=_k;
+  }
+  document.getElementById('sim-milestone').innerHTML=
+    (rateCrossIdx>=0?'PPA 단가 역전점 <b style="color:var(--green)">'+(rateCrossIdx+1)+'년차</b>':'20년 내 PPA 단가 역전 없음')
+    +' · '
+    +(breakEvenIdx>=0?'손익분기점 <b style="color:var(--orange)">'+(breakEvenIdx+1)+'년차</b>':'20년 내 손익분기점 없음');
 
+  var maxV=Math.max.apply(null,years.map(function(y){return Math.max(y.kepco,y.ppa);}))||1;
   var W=680,H=210,pL=16,pR=16,pT=20,pB=28,iW=W-pL-pR,iH=H-pT-pB;
-  var zeroY=pT+posMax/barRange*iH;
-  function barY(v){return zeroY-v/barRange*iH;}
 
-  var gap=iW/20,bW=gap*0.68;
-  var bars='',xLbls='',linePts=[];
+  var gap=iW/20,bW=gap*0.34,bGap=gap*0.06;
+  var bars='',bands='',xLbls='';
 
-  var zLine='<line x1="'+pL+'" y1="'+zeroY.toFixed(1)+'" x2="'+(W-pR)+'" y2="'+zeroY.toFixed(1)+'" stroke="#3d4d5d" stroke-width="1.5"/>';
-
-  var firstPosIdx=-1;
-  for(var _k=0;_k<years.length;_k++){if(years[_k].sav>=0){firstPosIdx=_k;break;}}
+  if(rateCrossIdx>=0){
+    var rx=pL+rateCrossIdx*gap;
+    bands+='<rect x="'+rx.toFixed(1)+'" y="'+pT+'" width="'+gap.toFixed(1)+'" height="'+iH+'" fill="rgba(93,168,122,.10)"/>';
+  }
+  if(breakEvenIdx>=0){
+    var bx=pL+breakEvenIdx*gap;
+    bands+='<rect x="'+bx.toFixed(1)+'" y="'+pT+'" width="'+gap.toFixed(1)+'" height="'+iH+'" fill="rgba(218,119,86,.10)"/>';
+  }
 
   years.forEach(function(yr,i){
     var cx=pL+i*gap+gap/2;
-    var isPos=yr.sav>=0;
-    var bH=Math.abs(yr.sav)/barRange*iH;
-    var topY=isPos?barY(yr.sav):zeroY;
-    var fillColor=(i===firstPosIdx)?'rgba(200,90,20,.90)':(isPos?'rgba(218,119,86,.55)':'rgba(160,160,160,.45)');
-    bars+='<rect x="'+(cx-bW/2).toFixed(1)+'" y="'+topY.toFixed(1)+
-      '" width="'+bW.toFixed(1)+'" height="'+bH.toFixed(1)+
-      '" fill="'+fillColor+'" rx="2"/>';
+    var kH=(yr.kepco/maxV)*iH,ky=pT+iH-kH;
+    var pH2=(yr.ppa/maxV)*iH,py=pT+iH-pH2;
+    bars+='<rect x="'+(cx-bGap/2-bW).toFixed(1)+'" y="'+ky.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+kH.toFixed(1)+'" fill="rgba(160,160,180,.45)" rx="1.5"/>';
+    bars+='<rect x="'+(cx+bGap/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+pH2.toFixed(1)+'" fill="rgba(218,119,86,.75)" rx="1.5"/>';
     if((i+1)%5===0||i===0)
       xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="8">'+(i+1)+'년</text>';
-    linePts.push([cx, barY(yr.sav)]);
   });
-
-  var trendLine=smoothLine(linePts);
 
   document.getElementById('twenty-grid').innerHTML=
     '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto">'
-    +zLine+bars
-    +'<path d="'+trendLine+'" fill="none" stroke="rgba(218,119,86,.85)" stroke-width="1.8"/>'
-    +xLbls+'</svg>';
+    +bands+bars+xLbls+'</svg>';
 }
 
 /* ── 초기화 ── */
