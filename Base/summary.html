@@ -842,7 +842,7 @@ function renderDetailMonthly(){
   var W=wrap.clientWidth||400,H=wrap.clientHeight||90;
   if(W<40||H<20){W=400;H=90;}
   var fs=chartFontScale(W);
-  var pL=40,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var pL=40*fs,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var n=monthly.length,gap=iW/n,bW=Math.max(4,gap*0.68);
   var bars='',labels='',grid='';
 
@@ -899,7 +899,7 @@ function renderDetailSeasonal(){
   var W=wrap.clientWidth||400,H=wrap.clientHeight||90;
   if(W<40||H<20){W=400;H=90;}
   var fs=chartFontScale(W);
-  var pL=40,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var pL=40*fs,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/3,bW=40,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -948,7 +948,7 @@ function renderDetailDow(){
   var W=wrap.clientWidth||400,H=wrap.clientHeight||90;
   if(W<40||H<20){W=400;H=90;}
   var fs=chartFontScale(W);
-  var pL=40,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var pL=40*fs,pR=10,pT=12,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/7,bW=26,bars='',labels='',grid='',linePts=[];
 
   [0,.5,1].forEach(function(y){
@@ -1003,7 +1003,7 @@ function renderDetailHeatmap(){
   var W=wrap.clientWidth||400,H=wrap.clientHeight||90;
   if(W<40||H<20){W=400;H=90;}
   var fs=chartFontScale(W);
-  var pL=40,pR=10,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var pL=40*fs,pR=10,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/12,bW=gap*0.68;
   function bx(i){return pL+i*gap+(gap-bW)/2;}
 
@@ -1053,7 +1053,7 @@ function renderDetailContractChart(){
   var W=wrap.clientWidth||400,H=wrap.clientHeight||90;
   if(W<40||H<20){W=400;H=90;}
   var fs=chartFontScale(W);
-  var pL=40,pR=10,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
+  var pL=40*fs,pR=10,pT=16,pB=16,iW=W-pL-pR,iH=H-pT-pB;
   var gap=iW/monthly.length;
   var labels='',grid='';
 
