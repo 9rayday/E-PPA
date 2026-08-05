@@ -108,10 +108,30 @@ function getTouBucket(hour, season) {
   return 'hi';                                              /* 15~21시 */
 }
 
-/* ── KEPCO AMI 파싱 (15분 간격 96열 + 일합계) ── */
+/* ── KEPCO AMI 파싱 (15분 간격 96열 + 일합계) ──
+   열의 "개수"가 아니라 헤더의 시간 라벨(00:15~24:00, 합계)로 각 열이 몇 번째
+   15분 구간인지 확정 판별. 예전엔 앞에서부터 96개를 구간값으로 가정했는데,
+   특정 날짜에 구간 하나라도 빈 칸(결측)이면 뒤 구간들이 통째로 밀리면서
+   합계열(그날 총사용량, 수만 단위)까지 구간값 후보에 섞여 최댓값으로
+   잘못 잡히는 문제가 있었음(요금적용전력이 터무니없이 크게 나오는 원인). */
 function parseAMI(rows) {
   var monthly = {};
   var seenDates = {};  /* 중복 날짜 방어 */
+
+  var header = rows[0] || [];
+  var colInterval = {};  /* 열 인덱스 → 15분 구간 인덱스(0~95) */
+  var sumColIdx = -1;
+  for (var h = 1; h < header.length; h++) {
+    var label = String(header[h]).trim();
+    if (label.indexOf('합계') >= 0) { sumColIdx = h; continue; }
+    var tm = label.match(/^(\d{1,2}):(\d{2})$/);
+    if (tm) {
+      var totalMin = parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10);
+      var idx = Math.round(totalMin / 15) - 1;
+      if (idx >= 0 && idx < 96) colInterval[h] = idx;
+    }
+  }
+  var useHeaderMap = Object.keys(colInterval).length >= 90; /* 헤더 라벨 인식 실패 시 옛 방식으로 폴백 */
 
   for (var r = 0; r < rows.length; r++) {
     var row = rows[r];
@@ -131,24 +151,41 @@ function parseAMI(rows) {
     if (seenDates[dateKey]) continue;
     seenDates[dateKey] = true;
 
-    var nums = [];
-    for (var c = 1; c < row.length; c++) {
-      var v = parseFloat(row[c]);
-      if (!isNaN(v) && v >= 0) nums.push(v);
-    }
-    if (nums.length === 0) continue;
+    var dayKwh, dayMaxInterval, intervalVals; /* intervalVals: 길이 96, 결측 구간은 undefined */
 
-    /* 일합계 결정: 마지막 값이 앞 96개의 합에 근접하면 합계열로 간주 */
-    var sum96   = nums.slice(0, 96).reduce(function (a, b) { return a + b; }, 0);
-    var lastVal = nums[nums.length - 1];
-    var dayKwh, dayMaxInterval;
-
-    if (nums.length > 96 && sum96 > 0 && Math.abs(lastVal - sum96) / sum96 < 0.05) {
-      dayKwh = lastVal;
-      dayMaxInterval = Math.max.apply(null, nums.slice(0, 96));
+    if (useHeaderMap) {
+      intervalVals = new Array(96);
+      var sumVal = null;
+      for (var c = 1; c < row.length; c++) {
+        var v = parseFloat(row[c]);
+        if (isNaN(v) || v < 0) continue;
+        if (c === sumColIdx) { sumVal = v; continue; }
+        if (colInterval.hasOwnProperty(c)) intervalVals[colInterval[c]] = v;
+      }
+      var validVals = intervalVals.filter(function (x) { return x !== undefined; });
+      if (validVals.length === 0 && sumVal === null) continue;
+      var intervalSum = validVals.reduce(function (a, b) { return a + b; }, 0);
+      dayMaxInterval = validVals.length ? Math.max.apply(null, validVals) : 0;
+      /* 합계열이 있고 구간합과 5% 이내로 맞으면 합계열 신뢰, 아니면 구간합 사용(결측 보정) */
+      dayKwh = (sumVal !== null && intervalSum > 0 && Math.abs(sumVal - intervalSum) / intervalSum < 0.05)
+        ? sumVal : intervalSum;
     } else {
-      dayKwh = nums.reduce(function (a, b) { return a + b; }, 0);
-      dayMaxInterval = Math.max.apply(null, nums);
+      /* 헤더에서 시간 라벨을 못 읽은 파일 — 기존 개수 기반 추정으로 폴백 */
+      var nums = [];
+      for (var c2 = 1; c2 < row.length; c2++) {
+        var v2 = parseFloat(row[c2]);
+        if (!isNaN(v2) && v2 >= 0) nums.push(v2);
+      }
+      if (nums.length === 0) continue;
+      var sum96   = nums.slice(0, 96).reduce(function (a, b) { return a + b; }, 0);
+      var lastVal = nums[nums.length - 1];
+      if (nums.length > 96 && sum96 > 0 && Math.abs(lastVal - sum96) / sum96 < 0.05) {
+        dayKwh = lastVal;
+      } else {
+        dayKwh = nums.reduce(function (a, b) { return a + b; }, 0);
+      }
+      intervalVals = nums.slice(0, 96);
+      dayMaxInterval = intervalVals.length ? Math.max.apply(null, intervalVals) : 0;
     }
 
     /* Wh → kWh 변환: 일 사용량이 50,000 초과 시 단위 Wh 가정 */
@@ -161,15 +198,16 @@ function parseAMI(rows) {
     /* 요금적용전력(순시 최대수요, kW) = 15분 구간 최대 에너지(kWh) × 4 */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
 
-    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 — 구간 인덱스(0~95)/4 = 시(0~23) */
-    var touNums = (nums.length > 96 && sum96 > 0 && Math.abs(lastVal - sum96) / sum96 < 0.05) ? nums.slice(0, 96) : nums;
+    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 — intervalVals[ti]는 항상 정확히 ti번째 구간 */
     var dow    = new Date(year, month - 1, day).getDay(); /* 0=일 ~ 6=토 */
     var season = getSeason(month);
-    for (var ti = 0; ti < touNums.length && ti < 96; ti++) {
+    for (var ti = 0; ti < 96; ti++) {
+      var val = intervalVals[ti];
+      if (val === undefined || val === null) continue;
       var hour   = Math.floor(ti / 4);
       var bucket = getTouBucket(hour, season);
       if (dow === 6 && bucket === 'hi') bucket = 'mid'; /* 토요일: 최대부하→중간부하 */
-      monthly[key][bucket] += wattUnit ? touNums[ti] / 1000 : touNums[ti];
+      monthly[key][bucket] += wattUnit ? val / 1000 : val;
     }
   }
 
