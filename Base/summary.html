@@ -498,6 +498,15 @@ function energyRate(tariff,month){
   var r=tariff.rates[s];
   return r.peak*0.35+r.mid*0.45+r.off*0.20;
 }
+/* AMI 실측 경부하/중간부하/최대부하(m.lo/mid/hi)가 있으면 실측 가중평균 단가,
+   없으면(월별 청구서 업로드 등) 기존 20/45/35% 추정치로 폴백 */
+function energyRateActual(tariff,month,m){
+  if(!tariff.tou) return tariff.energy[getSeason(month)];
+  var lo=m.lo||0,mid=m.mid||0,hi=m.hi||0,total=lo+mid+hi;
+  if(total<=0) return energyRate(tariff,month);
+  var r=tariff.rates[getSeason(month)];
+  return (r.off*lo+r.mid*mid+r.peak*hi)/total;
+}
 function fmt(n){return Math.round(n).toLocaleString('ko-KR');}
 function smoothLine(pts){
   if(pts.length<2) return '';
@@ -530,18 +539,18 @@ function getMonthSmp(month){
 /* ── 샘플 데이터 ── */
 var SAMPLE={
   monthly:[
-    {year:2024,month:1, kwh:52400,amount:7850000,gen:18200,eff:18200,selfRate:0.347,demandKw:150},
-    {year:2024,month:2, kwh:48100,amount:7210000,gen:20100,eff:20100,selfRate:0.418,demandKw:150},
-    {year:2024,month:3, kwh:44600,amount:6680000,gen:26800,eff:26800,selfRate:0.601,demandKw:130},
-    {year:2024,month:4, kwh:39800,amount:5960000,gen:30200,eff:30200,selfRate:0.759,demandKw:120},
-    {year:2024,month:5, kwh:42300,amount:6340000,gen:33500,eff:33500,selfRate:0.792,demandKw:125},
-    {year:2024,month:6, kwh:58700,amount:8800000,gen:34800,eff:34800,selfRate:0.593,demandKw:180},
-    {year:2024,month:7, kwh:72100,amount:10800000,gen:32200,eff:32200,selfRate:0.447,demandKw:215},
-    {year:2024,month:8, kwh:69400,amount:10400000,gen:33600,eff:33600,selfRate:0.484,demandKw:205},
-    {year:2024,month:9, kwh:51200,amount:7670000,gen:29400,eff:29400,selfRate:0.574,demandKw:155},
-    {year:2024,month:10,kwh:43500,amount:6520000,gen:25100,eff:25100,selfRate:0.577,demandKw:130},
-    {year:2024,month:11,kwh:47800,amount:7160000,gen:19400,eff:19400,selfRate:0.406,demandKw:145},
-    {year:2024,month:12,kwh:54900,amount:8230000,gen:17100,eff:17100,selfRate:0.311,demandKw:160}
+    {year:2024,month:1, kwh:52400,amount:7850000,gen:18200,eff:18200,selfRate:0.347,demandKw:150,lo:10480,mid:23580,hi:18340},
+    {year:2024,month:2, kwh:48100,amount:7210000,gen:20100,eff:20100,selfRate:0.418,demandKw:150,lo:9620,mid:21645,hi:16835},
+    {year:2024,month:3, kwh:44600,amount:6680000,gen:26800,eff:26800,selfRate:0.601,demandKw:130,lo:8920,mid:20070,hi:15610},
+    {year:2024,month:4, kwh:39800,amount:5960000,gen:30200,eff:30200,selfRate:0.759,demandKw:120,lo:7960,mid:17910,hi:13930},
+    {year:2024,month:5, kwh:42300,amount:6340000,gen:33500,eff:33500,selfRate:0.792,demandKw:125,lo:8460,mid:19035,hi:14805},
+    {year:2024,month:6, kwh:58700,amount:8800000,gen:34800,eff:34800,selfRate:0.593,demandKw:180,lo:11740,mid:26415,hi:20545},
+    {year:2024,month:7, kwh:72100,amount:10800000,gen:32200,eff:32200,selfRate:0.447,demandKw:215,lo:14420,mid:32445,hi:25235},
+    {year:2024,month:8, kwh:69400,amount:10400000,gen:33600,eff:33600,selfRate:0.484,demandKw:205,lo:13880,mid:31230,hi:24290},
+    {year:2024,month:9, kwh:51200,amount:7670000,gen:29400,eff:29400,selfRate:0.574,demandKw:155,lo:10240,mid:23040,hi:17920},
+    {year:2024,month:10,kwh:43500,amount:6520000,gen:25100,eff:25100,selfRate:0.577,demandKw:130,lo:8700,mid:19575,hi:15225},
+    {year:2024,month:11,kwh:47800,amount:7160000,gen:19400,eff:19400,selfRate:0.406,demandKw:145,lo:9560,mid:21510,hi:16730},
+    {year:2024,month:12,kwh:54900,amount:8230000,gen:17100,eff:17100,selfRate:0.311,demandKw:160,lo:10980,mid:24705,hi:19215}
   ],
   params:{lat:37.5665,lng:126.9780,cap:100,ppa:100,tariff:152,pr:0.82},
   ghi:{1:2.8,2:3.4,3:4.6,4:5.2,5:5.8,6:5.9,7:5.5,8:5.8,9:5.0,10:4.1,11:3.0,12:2.6},
@@ -660,7 +669,8 @@ function updateEffMonthly(){
     effMonthly=monthly.map(function(m){
       var g=Math.round(m.gen*sc);
       var e=Math.min(g,m.kwh); /* 스케일된 발전량을 사용량으로 다시 클리핑 — eff가 kwh를 넘는 걸 방지 */
-      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0};
+      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0,
+        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
     });
   } else {
     effMonthly=monthly;
@@ -1140,15 +1150,37 @@ function renderPpaStructure(){
     +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">※ 부가가치세 및 PPA 전력손실분은 단가에 포함되지 않습니다.</div>';
 }
 
+/* 요금적용전력 결정(한전 전기공급약관 시행세칙 제68조) — 직전 12개월 중 성수기
+   (7·8·9·12·1·2월)와 당월 최대수요전력의 최댓값, 계약전력의 30% 미만이면 30%를
+   하한으로 적용. 한 번 성수기에 피크가 찍히면 최대 12개월간 기본요금에 반영됨.
+   AMI가 1개년치뿐이라 "직전 12개월"은 보유한 1년 전체로 근사. */
+function computeApplicablePower(contractKw){
+  var hasDemand=monthly.some(function(m){return m.demandKw>0;});
+  if(!hasDemand) return null;
+  var peakMonths=[12,1,2,7,8,9];
+  var seasonalPeak=0;
+  monthly.forEach(function(m){
+    if(peakMonths.indexOf(m.month)>=0) seasonalPeak=Math.max(seasonalPeak,m.demandKw||0);
+  });
+  var floor=contractKw*0.30;
+  var result={};
+  monthly.forEach(function(m){
+    result[m.month]=Math.max(seasonalPeak,m.demandKw||0,floor);
+  });
+  return result;
+}
+
 /* ── 기능 3: 요금/시뮬레이션 공용 계산 ── 두 곳(요금표·20년표)이 항상 같은 결과를
    내도록 입력 읽기와 연간 비용 산출을 단일 함수로 통일 */
 function readFeeInputs(){
   var genFee    =parseFloat(document.getElementById('inp-fee-gen').value)||0;
   var transFee  =parseFloat(document.getElementById('sel-transfee').value)||0;
   var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
+  var contractKw=parseFloat(document.getElementById('inp-contract').value)||0;
   return {
     tariff:KEPCO[document.getElementById('sel-tariff').value],
-    contractKw:parseFloat(document.getElementById('inp-contract').value)||0,
+    contractKw:contractKw,
+    applicablePower:computeApplicablePower(contractKw),
     genFee:genFee, transFee:transFee, distFee:distFee,
     /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
     netFeeUsage:genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee,
@@ -1181,7 +1213,7 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
     var excess=Math.max(0,genY-m.kwh);      // 사용량 초과 발전분 → REC 매입 대상
     totalKwh+=m.kwh; totalSelfConsume+=self; remainKwh+=remain; totalExcess+=excess;
 
-    var rate=energyRate(inp.tariff,m.month)*kF;
+    var rate=energyRateActual(inp.tariff,m.month,m)*kF;
     kEnergy+=rate*m.kwh;
     rEnergy+=rate*remain;
 
@@ -1192,8 +1224,13 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
     }
   });
 
-  /* 한전 전체 (PPA 미도입 기준) */
-  var kBasic=inp.tariff.basicRate*inp.contractKw*12*kF;
+  /* 한전 전체 (PPA 미도입 기준) — 요금적용전력 데이터 있으면 월별 실측 기준, 없으면 계약전력×12 근사 */
+  var kBasic=0;
+  if(inp.applicablePower){
+    effMonthly.forEach(function(m){ kBasic+=inp.tariff.basicRate*inp.applicablePower[m.month]*kF; });
+  } else {
+    kBasic=inp.tariff.basicRate*inp.contractKw*12*kF;
+  }
   var kClim =climF*totalKwh, kFuel=fuelF*totalKwh;
   var kSub  =kBasic+kEnergy+kClim+kFuel;
   var kVat  =Math.round(kSub*0.10/10)*10;
@@ -1233,10 +1270,17 @@ function renderFeeTable(){
   var b=computeYearlyFeeBreakdown(inp,1,1);
   function W(n){return fmt(Math.round(n));}
 
+  var hasActualTou=inp.tariff.tou&&monthly.some(function(m){return (m.lo||0)+(m.mid||0)+(m.hi||0)>0;});
+  var touNote=!inp.tariff.tou?'':(hasActualTou?' <span style="color:var(--tx4);font-size:10px">(TOU: AMI 실측 시간대별)</span>'
+    :' <span style="color:var(--tx4);font-size:10px">(TOU: 경부하 20% · 중간 45% · 최대 35% 추정)</span>');
+  var basicLabel=inp.applicablePower
+    ?'기본요금 (요금적용전력 기준 월별 실측 합산, '+inp.tariff.basicRate.toLocaleString('ko-KR')+'원/kW)'
+    :'기본요금 ('+inp.tariff.basicRate.toLocaleString('ko-KR')+'원/kW × '+inp.contractKw.toLocaleString('ko-KR')+'kW × 12개월)';
+
   var body='<tbody>';
   body+='<tr class="section-row"><td colspan="2">① 한전 전기요금 전체 (PPA 미도입 기준)</td></tr>';
-  body+='<tr><td style="padding-left:22px">기본요금 ('+inp.tariff.basicRate.toLocaleString('ko-KR')+'원/kW × '+inp.contractKw.toLocaleString('ko-KR')+'kW × 12개월)</td><td>'+W(b.kBasic)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">전력량 요금 <span style="color:var(--tx4);font-size:10px">(TOU: 경부하 20% · 중간 45% · 최대 35% 추정)</span></td><td>'+W(b.kEnergy)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">'+basicLabel+'</td><td>'+W(b.kBasic)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">전력량 요금'+touNote+'</td><td>'+W(b.kEnergy)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">기후환경요금 ('+inp.climate+'원/kWh × '+fmt(b.totalKwh)+'kWh)</td><td>'+W(b.kClim)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">연료비조정요금 ('+inp.fuel+'원/kWh × '+fmt(b.totalKwh)+'kWh)</td><td>'+W(b.kFuel)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">부가가치세 10% <span style="color:var(--tx4);font-size:10px">(원미만 4사5입)</span></td><td>'+W(b.kVat)+'</td></tr>';

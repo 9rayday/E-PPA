@@ -90,6 +90,24 @@ function autoDetect(rows) {
   return 'monthly';
 }
 
+/* ── 계절·시간대 구분 (한전 전기요금표 2026.6.1 시행 기준) ──
+   토요일은 최대부하→중간부하 재분류. 공휴일 재분류(→경부하)는 별도 휴일 목록이
+   필요해 미반영 — 평일/토요일 구분까지만 실측 반영, 나머지는 추정치 유지. */
+function getSeason(month) {
+  if (month >= 6 && month <= 8) return 'summer';
+  if ([3, 4, 5, 9, 10].indexOf(month) >= 0) return 'spring_fall';
+  return 'winter';
+}
+function getTouBucket(hour, season) {
+  if (hour >= 22 || hour < 8) return 'lo';                 /* 경부하 22~08시, 전 계절 동일 */
+  if (season === 'winter') {
+    if ((hour >= 8 && hour < 9) || (hour >= 12 && hour < 16) || (hour >= 19 && hour < 22)) return 'mid';
+    return 'hi';                                            /* 09~12, 16~19시 */
+  }
+  if ((hour >= 8 && hour < 15) || (hour >= 21 && hour < 22)) return 'mid';
+  return 'hi';                                              /* 15~21시 */
+}
+
 /* ── KEPCO AMI 파싱 (15분 간격 96열 + 일합계) ── */
 function parseAMI(rows) {
   var monthly = {};
@@ -134,18 +152,36 @@ function parseAMI(rows) {
     }
 
     /* Wh → kWh 변환: 일 사용량이 50,000 초과 시 단위 Wh 가정 */
-    if (dayKwh > 50000) { dayKwh /= 1000; dayMaxInterval /= 1000; }
+    var wattUnit = dayKwh > 50000;
+    if (wattUnit) { dayKwh /= 1000; dayMaxInterval /= 1000; }
 
     var key = year + '-' + month;
-    if (!monthly[key]) monthly[key] = { year: year, month: month, kwh: 0, amount: 0, maxInterval: 0 };
+    if (!monthly[key]) monthly[key] = { year: year, month: month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0 };
     monthly[key].kwh += dayKwh;
     /* 요금적용전력(순시 최대수요, kW) = 15분 구간 최대 에너지(kWh) × 4 */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
+
+    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 — 구간 인덱스(0~95)/4 = 시(0~23) */
+    var touNums = (nums.length > 96 && sum96 > 0 && Math.abs(lastVal - sum96) / sum96 < 0.05) ? nums.slice(0, 96) : nums;
+    var dow    = new Date(year, month - 1, day).getDay(); /* 0=일 ~ 6=토 */
+    var season = getSeason(month);
+    for (var ti = 0; ti < touNums.length && ti < 96; ti++) {
+      var hour   = Math.floor(ti / 4);
+      var bucket = getTouBucket(hour, season);
+      if (dow === 6 && bucket === 'hi') bucket = 'mid'; /* 토요일: 최대부하→중간부하 */
+      monthly[key][bucket] += wattUnit ? touNums[ti] / 1000 : touNums[ti];
+    }
   }
 
   return Object.values(monthly)
     .sort(function (a, b) { return a.year !== b.year ? a.year - b.year : a.month - b.month; })
-    .map(function (m) { return { year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount), demandKw: Math.round(m.maxInterval * 4) }; });
+    .map(function (m) {
+      return {
+        year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount),
+        demandKw: Math.round(m.maxInterval * 4),
+        lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi)
+      };
+    });
 }
 
 /* ── 월별 청구 데이터 파싱 (년도|월|사용량|청구금액) ── */
@@ -261,7 +297,8 @@ function runAnalysis() {
       gen: Math.round(gen),
       eff: Math.round(eff),
       selfRate: selfRate,
-      demandKw: m.demandKw
+      demandKw: m.demandKw,
+      lo: m.lo, mid: m.mid, hi: m.hi
     };
   });
 
