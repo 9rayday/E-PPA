@@ -457,6 +457,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
    지역 일치 여부가 아님. 연계유형 입력을 받기 전까지는 종합손실률로 단순화. */
 var TRANS_LOSS = 0.0157; // 송전손실률 1.57%
 var COMB_LOSS  = 0.0352; // 종합손실률 3.52%
+/* PPA 망이용료 기본요금 단가 (원/kW·월, 이용규정 별표17 산정예시 기준) */
+var FEE_BASIC_GEN = 667.36; // 발전측 송전
+var FEE_BASIC_DEM = 667.61; // 수요측 송전
+var FEE_BASIC_DIST= 548;    // 배전고압
 
 /* ── KEPCO 요금 (2026-06-01) ── */
 var KEPCO = {
@@ -1192,9 +1196,6 @@ function readFeeInputs(){
     genFee:genFee, transFee:transFee, distFee:distFee,
     /* 망이용료 사용요금 = 발전지역별 + (1-송전손실률)×수요지역별 + (1-종합손실률)×배전 */
     netFeeUsage:genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee,
-    /* 망이용료 기본요금: 적용 구성요소에 따라 자동 합산 */
-    netFeeBasic:(genFee>0?667.36:0)+(transFee>0?667.61:0)
-               +(distFee===3.05?548:distFee===11.33?1066:0),
     climate:parseFloat(document.getElementById('inp-climate').value)||9,
     fuel:parseFloat(document.getElementById('inp-fuel').value)||5,
     feeTradeR:parseFloat(document.getElementById('inp-fee-trade').value)||0.1193,
@@ -1245,9 +1246,35 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
   var kFund =Math.floor(kSub*0.027/10)*10;
   var kTotal=kSub+kVat+kFund;
 
+  /* PPA 망이용료 기본요금(별표17): 발전측·수요측·배전을 분리 계산해서 "부족전력
+     요금적용전력"(=한전측 요금적용전력, applicablePower — PPA가 못 채운 부족분에
+     대해 전기사용자가 이미 부담 중인 요금적용전력)을 초과하는 부분에 대해서만
+     각 구간 단가를 부과. 수요측/배전 요금적용전력은 원래 "PPA공급량의 순시
+     최대치"가 필요한데 월간 총량만 있어, 발전측 값(당월 자가소비÷발전량×설비
+     용량 비율 기반)을 근사치로 재사용하고 손실률·롤링 최댓값 규칙만 구간별로
+     다르게 적용(수요측: 직전 12개월 최댓값, 배전: 성수기 12·1·2·7·8·9월 최댓값). */
+  var genAppl={};
+  effMonthly.forEach(function(m){
+    var genY=(m.gen||0)*sF;
+    genAppl[m.month]=genY>0?(Math.min(genY,m.kwh)/genY)*inp.cap:0;
+  });
+  var monthsArr=effMonthly.map(function(m){return m.month;});
+  var demPeak=Math.max.apply(null,monthsArr.map(function(mo){return genAppl[mo];}));
+  var peakSeasonMonths=[12,1,2,7,8,9];
+  var distPeak=0;
+  monthsArr.forEach(function(mo){ if(peakSeasonMonths.indexOf(mo)>=0) distPeak=Math.max(distPeak,genAppl[mo]); });
+
+  var p2bGen=0,p2bDem=0,p2bDist=0;
+  effMonthly.forEach(function(m){
+    var floor=inp.applicablePower?inp.applicablePower[m.month]:inp.contractKw;
+    if(inp.genFee>0)   p2bGen +=FEE_BASIC_GEN *Math.max(0,genAppl[m.month]-floor);
+    if(inp.transFee>0) p2bDem +=FEE_BASIC_DEM *Math.max(0,Math.max(demPeak,genAppl[m.month])*(1-TRANS_LOSS)-floor);
+    if(inp.distFee>0)  p2bDist+=FEE_BASIC_DIST*Math.max(0,Math.max(distPeak,genAppl[m.month])*(1-COMB_LOSS)-floor);
+  });
+  var p2b=p2bGen+p2bDem+p2bDist;
+
   /* PPA (자가소비분 기준) */
   var p1 =inp.ppa*totalSelfConsume;
-  var p2b=inp.netFeeBasic*Math.max(0,inp.cap-inp.contractKw)*12;
   var p2u=inp.netFeeUsage*totalSelfConsume;
   var p3 =inp.feeTradeR*totalSelfConsume, p4=inp.feeAdjR*totalSelfConsume;
   var pSub=p1+p2b+p2u+p3+p4,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
@@ -1265,7 +1292,7 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
   return {
     totalKwh:totalKwh,totalSelfConsume:totalSelfConsume,remainKwh:remainKwh,totalExcess:totalExcess,
     kBasic:kBasic,kEnergy:kEnergy,kClim:kClim,kFuel:kFuel,kVat:kVat,kFund:kFund,kTotal:kTotal,
-    p1:p1,p2b:p2b,p2u:p2u,p3:p3,p4:p4,pSub:pSub,p5:p5,p6:p6,pTotal:pTotal,
+    p1:p1,p2b:p2b,p2bGen:p2bGen,p2bDem:p2bDem,p2bDist:p2bDist,p2u:p2u,p3:p3,p4:p4,pSub:pSub,p5:p5,p6:p6,pTotal:pTotal,
     rBasic:rBasic,rEnergy:rEnergy,rClim:rClim,rFuel:rFuel,rVat:rVat,rFund:rFund,rTotal:rTotal,
     recSettlement:recSettlement,totalCost:totalCost,
     savings:kTotal-totalCost           // PPA 미도입 - (PPA사용분+한전잔여+REC매입)
@@ -1299,8 +1326,10 @@ function renderFeeTable(){
   body+='<tr class="section-row"><td colspan="2">② PPA 사용분 ('+(b.totalSelfConsume/1000).toFixed(1)+'MWh)</td></tr>';
   body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+inp.ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(b.totalSelfConsume)+'kWh)</td><td>'+W(b.p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
-  var p2bKw=Math.max(0,inp.cap-inp.contractKw);
-  body+='<tr><td style="padding-left:38px">기본요금 ('+inp.netFeeBasic.toFixed(0)+'원/kW·월 × '+p2bKw.toLocaleString('ko-KR')+'kW 초과분 × 12개월'+(p2bKw===0?' · 계약전력 이하 → 0원':'')+' )</td><td>'+W(b.p2b)+'</td></tr>';
+  body+='<tr><td style="padding-left:38px;color:var(--tx4);font-size:10px">기본요금 — 부족전력 요금적용전력 초과분에만 부과 (별표17)</td><td></td></tr>';
+  body+='<tr><td style="padding-left:52px">발전측 ('+FEE_BASIC_GEN.toFixed(2)+'원/kW·월)</td><td>'+W(b.p2bGen)+'</td></tr>';
+  body+='<tr><td style="padding-left:52px">수요측 ('+FEE_BASIC_DEM.toFixed(2)+'원/kW·월)</td><td>'+W(b.p2bDem)+'</td></tr>';
+  body+='<tr><td style="padding-left:52px">배전 ('+FEE_BASIC_DIST.toFixed(0)+'원/kW·월)</td><td>'+W(b.p2bDist)+'</td></tr>';
   body+='<tr><td style="padding-left:38px">사용요금 ('+inp.netFeeUsage.toFixed(2)+'원/kWh × '+fmt(b.totalSelfConsume)+'kWh)</td><td>'+W(b.p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(b.p2b+b.p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+inp.feeTradeR+'원/kWh)</td><td>'+W(b.p3)+'</td></tr>';
