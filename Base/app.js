@@ -25,6 +25,22 @@ function getGHI() {
   return ghi;
 }
 
+/* 3개년 실측 기반 지역별 월별 발전량 분포(%, 합계=100)
+   수도권: 서울/인천/경기 3개 지역 평균, 비수도권: 나머지 13개 시도 평균
+   NASA POWER GHI는 연간 총 발전시간(발전량) 추론에 사용하고,
+   월별 배분은 실측 발전량 통계 기반의 이 분포를 사용한다.
+   (GHI 모델은 장마철(6~8월) 발전 손실을 과소평가하고 만추~겨울철을 과소평가하는 경향이 있어 보정 효과가 있음) */
+var MONTHLY_DIST_REGION = {
+  sudo:    [5.70, 6.93, 9.50, 9.80, 10.80, 10.67, 8.63, 9.47, 8.17, 7.67, 6.77, 5.83],
+  nonsudo: [5.88, 6.55, 9.14, 9.70, 10.62, 10.37, 9.05, 10.03, 7.97, 7.55, 7.12, 6.04]
+};
+
+function getMonthlyDist() {
+  var vals = MONTHLY_DIST_REGION[_region], dist = {};
+  for (var m = 1; m <= 12; m++) dist[m] = vals[m - 1] / 100;
+  return dist;
+}
+
 /* ── 초기화 ── */
 document.addEventListener('DOMContentLoaded', function () {
   setupUpload();
@@ -301,11 +317,19 @@ function onLoaded(filename, monthly) {
   cfg.style.display = 'flex';
 }
 
-/* ── 월별 태양광 발전량 (kWh) ── */
-function calcSolar(cap, ghi, month, year) {
-  var PR   = 0.82;
-  var days = new Date(year, month, 0).getDate();
-  return cap * ghi[month] * PR * days;
+/* ── 연간 태양광 발전량 (kWh) — NASA POWER GHI 기반 ── */
+function calcAnnualSolar(cap, ghi, year) {
+  var PR = 0.82, total = 0;
+  for (var m = 1; m <= 12; m++) {
+    var days = new Date(year, m, 0).getDate();
+    total += ghi[m] * days;
+  }
+  return cap * PR * total;
+}
+
+/* ── 월별 태양광 발전량 (kWh) — 연간 총량 × 실측 월별 분포 ── */
+function calcSolar(cap, ghi, dist, month, year) {
+  return calcAnnualSolar(cap, ghi, year) * dist[month];
 }
 
 /* ── 메인 분석 실행 ── */
@@ -323,10 +347,11 @@ function runAnalysis() {
 
   var tariff  = parseFloat(document.getElementById('inp-tariff').value) || 0;
   var ghi     = getGHI();
+  var dist    = getMonthlyDist();
   var monthly = parsedData.monthly;
 
   var enriched = monthly.map(function (m) {
-    var gen      = calcSolar(cap, ghi, m.month, m.year);
+    var gen      = calcSolar(cap, ghi, dist, m.month, m.year);
     var eff      = Math.min(gen, m.kwh);
     var selfRate = m.kwh > 0 ? eff / m.kwh : 0;
     return {
