@@ -1154,7 +1154,7 @@ function renderPpaStructure(){
     +'<tr><td>부가정산금</td><td>'+W2(adj)+'</td></tr>'
     +'<tr><td>전력거래 수수료</td><td>'+W2(trade)+'</td></tr>'
     +'<tr><td>전력산업기반기금</td><td>'+W2(fund)+'</td></tr>'
-    +'<tr class="total-row"><td>최종 PPA 단가</td><td>'+W2(finalUnit)+'/kWh</td></tr>'
+    +'<tr class="total-row"><td>최종 PPA 단가</td><td>'+finalUnit.toFixed(1)+'원/kWh</td></tr>'
     +'</tbody>';
 
   document.getElementById('ppa-structure').innerHTML=
