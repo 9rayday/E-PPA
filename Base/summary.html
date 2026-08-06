@@ -266,7 +266,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
           <input  class="gate-inp" id="g-company" placeholder="회사명" type="text">
           <input  class="gate-inp" id="g-name"    placeholder="담당자명" type="text">
-          <input  class="gate-inp" id="g-contact" placeholder="연락처 또는 이메일" type="text">
+          <input  class="gate-inp" id="g-contact" placeholder="연락처(010-0000-0000) 또는 이메일" type="text">
           <select class="gate-sel" id="g-re100">
             <option value="">RE100 공급 목표시기</option>
             <option value="~2026">~2026년</option>
@@ -610,6 +610,21 @@ function checkGate(){
   }
 }
 
+/* 같은 문자만 반복되거나("1111","ㅁㅁㅁㅁ") 숫자로만 이루어진 값 차단 */
+function isJunkText(s){
+  if(/^(.)\1*$/.test(s)) return true;
+  if(/^[0-9\s\-]+$/.test(s)) return true;
+  return false;
+}
+function isValidNameLike(s){
+  return s.length>=2 && !isJunkText(s);
+}
+function isValidContact(s){
+  var phone=/^0\d{1,2}-?\d{3,4}-?\d{4}$/;
+  var email=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return phone.test(s.replace(/\s/g,'')) || email.test(s);
+}
+
 function submitLead(){
   var company =document.getElementById('g-company').value.trim();
   var name    =document.getElementById('g-name').value.trim();
@@ -617,6 +632,18 @@ function submitLead(){
   var re100   =document.getElementById('g-re100').value;
   if(!company||!name||!contact){
     alert('회사명, 담당자명, 연락처를 모두 입력해주세요.');return;
+  }
+  if(!isValidNameLike(company)){
+    alert('회사명을 정확히 입력해주세요.');
+    document.getElementById('g-company').focus();return;
+  }
+  if(!isValidNameLike(name)){
+    alert('담당자명을 정확히 입력해주세요.');
+    document.getElementById('g-name').focus();return;
+  }
+  if(!isValidContact(contact)){
+    alert('연락처는 휴대폰 번호(예: 010-1234-5678) 또는 이메일 형식으로 입력해주세요.');
+    document.getElementById('g-contact').focus();return;
   }
   var btn=document.getElementById('gate-submit-btn');
   btn.disabled=true;btn.textContent='전송 중…';
