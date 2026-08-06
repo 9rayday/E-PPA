@@ -374,7 +374,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
           <div>
             <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fee-adj" type="number" value="9.8" step="0.01" onchange="onAssumptionChange()">
+            <input class="inp-s" id="inp-fee-adj" type="number" value="9.98" step="0.01" onchange="onAssumptionChange()">
           </div>
         </div>
 
@@ -1163,7 +1163,7 @@ function renderPpaStructure(){
   var distFee   =parseFloat(document.getElementById('sel-distfee').value)||0;
   var netFeeUsage=genFee+(1-TRANS_LOSS)*transFee+(1-COMB_LOSS)*distFee;
   var trade  =parseFloat(document.getElementById('inp-fee-trade').value)||0.1193;
-  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||9.8;
+  var adj    =parseFloat(document.getElementById('inp-fee-adj').value)||9.98;
   var ppa=parseFloat(document.getElementById('inp-ppa').value)||params.ppa;
 
   var sub=ppa+netFeeUsage+trade+adj;
@@ -1226,7 +1226,7 @@ function readFeeInputs(){
     climate:parseFloat(document.getElementById('inp-climate').value)||9,
     fuel:parseFloat(document.getElementById('inp-fuel').value)||5,
     feeTradeR:parseFloat(document.getElementById('inp-fee-trade').value)||0.1193,
-    feeAdjR:parseFloat(document.getElementById('inp-fee-adj').value)||9.8,
+    feeAdjR:parseFloat(document.getElementById('inp-fee-adj').value)||9.98,
     ppa:parseFloat(document.getElementById('inp-ppa').value)||params.ppa,
     cap:parseFloat(document.getElementById('inp-cap').value)||params.cap,
     recWeight:1.2 // REC 가중치 고정 (태양광 일반)
