@@ -332,7 +332,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             <input class="inp-s" id="inp-ppa" type="number" value="185" step="0.1" onchange="onAssumptionChange()">
           </div>
           <div>
-            <div class="form-label">발전지역별 송전이용요금 <span class="form-hint">별표1</span></div>
+            <div class="form-label">발전지역별 송전이용요금</div>
             <select class="sel-field" id="inp-fee-gen" onchange="onAssumptionChange()">
               <option value="1.92" selected>비수도권 (1.92원/kWh)</option>
               <option value="1.25">수도권 북부 (1.25원/kWh)</option>
@@ -341,7 +341,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             </select>
           </div>
           <div>
-            <div class="form-label">수요지역별 송전이용요금 <span class="form-hint">별표1</span></div>
+            <div class="form-label">수요지역별 송전이용요금</div>
             <select class="sel-field" id="sel-transfee" onchange="onAssumptionChange()">
               <option value="1.42" selected>비수도권 (1.42원/kWh)</option>
               <option value="2.44">수도권 (2.44원/kWh)</option>
@@ -349,7 +349,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
             </select>
           </div>
           <div>
-            <div class="form-label">배전이용요금 <span class="form-hint">별표1</span></div>
+            <div class="form-label">배전이용요금</div>
             <select class="sel-field" id="sel-distfee" onchange="onAssumptionChange()">
               <option value="3.05" selected>고압 600V초과 (3.05원/kWh)</option>
               <option value="11.33">저압 600V이하 (11.33원/kWh)</option>
@@ -1326,7 +1326,7 @@ function renderFeeTable(){
   body+='<tr class="section-row"><td colspan="2">② PPA 사용분 ('+(b.totalSelfConsume/1000).toFixed(1)+'MWh)</td></tr>';
   body+='<tr><td style="padding-left:22px">① 전력량 요금 ('+inp.ppa.toLocaleString('ko-KR')+'원/kWh × '+fmt(b.totalSelfConsume)+'kWh)</td><td>'+W(b.p1)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">② 송배전용요금 (망이용료)</td><td></td></tr>';
-  body+='<tr><td style="padding-left:38px;color:var(--tx4);font-size:10px">기본요금 — 부족전력 요금적용전력 초과분에만 부과 (별표17)</td><td></td></tr>';
+  body+='<tr><td style="padding-left:38px;color:var(--tx4);font-size:10px">기본요금 — 부족전력 요금적용전력 초과분에만 부과</td><td></td></tr>';
   body+='<tr><td style="padding-left:52px">발전측 ('+FEE_BASIC_GEN.toFixed(2)+'원/kW·월)</td><td>'+W(b.p2bGen)+'</td></tr>';
   body+='<tr><td style="padding-left:52px">수요측 ('+FEE_BASIC_DEM.toFixed(2)+'원/kW·월)</td><td>'+W(b.p2bDem)+'</td></tr>';
   body+='<tr><td style="padding-left:52px">배전 ('+FEE_BASIC_DIST.toFixed(0)+'원/kW·월)</td><td>'+W(b.p2bDist)+'</td></tr>';
@@ -1421,7 +1421,7 @@ function runSim(){
     bars+='<rect x="'+(cx-bGap/2-bW).toFixed(1)+'" y="'+ky.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+kH.toFixed(1)+'" fill="rgba(160,160,180,.45)" rx="1.5"/>';
     bars+='<rect x="'+(cx+bGap/2).toFixed(1)+'" y="'+py.toFixed(1)+'" width="'+bW.toFixed(1)+'" height="'+pH2.toFixed(1)+'" fill="rgba(218,119,86,.75)" rx="1.5"/>';
     if((i+1)%5===0||i===0)
-      xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="8">'+(i+1)+'년</text>';
+      xLbls+='<text x="'+cx.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" fill="#7a7a7a" font-size="6">'+(i+1)+'년</text>';
   });
 
   document.getElementById('twenty-grid').innerHTML=
