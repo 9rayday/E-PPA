@@ -124,31 +124,53 @@ function getTouBucket(hour, season) {
   return 'hi';                                              /* 15~21시 */
 }
 
-/* ── KEPCO AMI 파싱 (15분 간격 96열 + 일합계) ──
-   열의 "개수"가 아니라 헤더의 시간 라벨(00:15~24:00, 합계)로 각 열이 몇 번째
-   15분 구간인지 확정 판별. 예전엔 앞에서부터 96개를 구간값으로 가정했는데,
-   특정 날짜에 구간 하나라도 빈 칸(결측)이면 뒤 구간들이 통째로 밀리면서
-   합계열(그날 총사용량, 수만 단위)까지 구간값 후보에 섞여 최댓값으로
-   잘못 잡히는 문제가 있었음(요금적용전력이 터무니없이 크게 나오는 원인). */
+/* ── KEPCO AMI 파싱 (15분/30분/60분 등 간격 자동감지 + 일합계) ──
+   열의 "개수"가 아니라 헤더의 시간 라벨(00:15~24:00 또는 01:00~24:00 등, 합계)로
+   각 열이 몇 번째 구간인지 확정 판별. 예전엔 앞에서부터 96개(15분 간격)를 구간값으로
+   고정 가정했는데, 특정 날짜에 구간 하나라도 빈 칸(결측)이면 뒤 구간들이 통째로 밀리면서
+   합계열(그날 총사용량, 수만 단위)까지 구간값 후보에 섞여 최댓값으로 잘못 잡히는 문제가
+   있었음(요금적용전력이 터무니없이 크게 나오는 원인). 라벨 간 최소 간격으로 구간 길이
+   (stepMin)를 자동감지해 15분/60분 등 다른 간격의 파일도 지원. */
 function parseAMI(rows) {
-  var monthly = {};
-  var seenDates = {};  /* 중복 날짜 방어 */
-
-  var header = rows[0] || [];
-  var colInterval = {};  /* 열 인덱스 → 15분 구간 인덱스(0~95) */
+  var header   = rows[0] || [];
+  var timeCols = [];  /* {col, totalMin} — 헤더에서 인식된 시각 라벨들 */
   var sumColIdx = -1;
   for (var h = 1; h < header.length; h++) {
     var label = String(header[h]).trim();
     if (label.indexOf('합계') >= 0) { sumColIdx = h; continue; }
     var tm = label.match(/^(\d{1,2}):(\d{2})$/);
-    if (tm) {
-      var totalMin = parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10);
-      var idx = Math.round(totalMin / 15) - 1;
-      if (idx >= 0 && idx < 96) colInterval[h] = idx;
+    if (tm) timeCols.push({ col: h, totalMin: parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10) });
+  }
+
+  /* 라벨 간 최소 간격(분)을 구간 길이로 자동감지 (15분 KEPCO 표준 AMI, 60분 시간단위 등) */
+  var stepMin = 15, slotCount = 96, colInterval = {}, useHeaderMap = false;
+  if (timeCols.length >= 4) {
+    var mins = timeCols.map(function (t) { return t.totalMin; }).sort(function (a, b) { return a - b; });
+    var minGap = Infinity;
+    for (var i = 1; i < mins.length; i++) {
+      var g = mins[i] - mins[i - 1];
+      if (g > 0 && g < minGap) minGap = g;
+    }
+    var candStep = isFinite(minGap) && minGap > 0 ? minGap : 15;
+    var candSlot = Math.round(1440 / candStep);
+    var candMap  = {};
+    timeCols.forEach(function (t) {
+      var idx = Math.round(t.totalMin / candStep) - 1;
+      if (idx >= 0 && idx < candSlot) candMap[t.col] = idx;
+    });
+    /* 인식된 구간열이 전체 구간의 80% 이상 커버해야 신뢰(그렇지 않으면 옛 방식 폴백) */
+    if (Object.keys(candMap).length >= candSlot * 0.8) {
+      useHeaderMap = true; stepMin = candStep; slotCount = candSlot; colInterval = candMap;
     }
   }
-  var useHeaderMap = Object.keys(colInterval).length >= 90; /* 헤더 라벨 인식 실패 시 옛 방식으로 폴백 */
+  var intervalToKw = 60 / stepMin; /* 구간 에너지(kWh) → 순시 kW 환산 배수(15분=4배, 60분=1배 등) */
 
+  /* ── 1차 패스: 날짜별 원본(raw) 값 수집 — 단위(kWh/Wh) 판정은 파일 전체를 보고
+     한 번만 내려야 함. 예전엔 "하루 합계 5만 초과=Wh"로 날짜별 판정했는데, 대형
+     사업장(예: 5MW급, 평일 하루 7~9만kWh)은 평일만 Wh로 오판되어 1000으로 나뉘고
+     주말은 정상 유지되는 식으로 날짜마다 들쭉날쭉하게 깨지는 문제가 있었음. */
+  var seenDates  = {};
+  var dayRecords = [];
   for (var r = 0; r < rows.length; r++) {
     var row = rows[r];
     if (!row[0]) continue;
@@ -162,15 +184,14 @@ function parseAMI(rows) {
     var day   = parseInt(dateMatch[3]);
     if (year < 2010 || year > 2035 || month < 1 || month > 12) continue;
 
-    /* 동일 날짜 중복 행 스킵 */
     var dateKey = year + '-' + month + '-' + day;
     if (seenDates[dateKey]) continue;
     seenDates[dateKey] = true;
 
-    var dayKwh, dayMaxInterval, intervalVals; /* intervalVals: 길이 96, 결측 구간은 undefined */
+    var dayKwh, dayMaxInterval, intervalVals; /* intervalVals: 길이 slotCount, 결측 구간은 undefined */
 
     if (useHeaderMap) {
-      intervalVals = new Array(96);
+      intervalVals = new Array(slotCount);
       var sumVal = null;
       for (var c = 1; c < row.length; c++) {
         var v = parseFloat(row[c]);
@@ -186,7 +207,7 @@ function parseAMI(rows) {
       dayKwh = (sumVal !== null && intervalSum > 0 && Math.abs(sumVal - intervalSum) / intervalSum < 0.05)
         ? sumVal : intervalSum;
     } else {
-      /* 헤더에서 시간 라벨을 못 읽은 파일 — 기존 개수 기반 추정으로 폴백 */
+      /* 헤더에서 시간 라벨을 못 읽은 파일 — 기존 개수 기반 추정으로 폴백(15분 96구간 가정) */
       var nums = [];
       for (var c2 = 1; c2 < row.length; c2++) {
         var v2 = parseFloat(row[c2]);
@@ -204,35 +225,52 @@ function parseAMI(rows) {
       dayMaxInterval = intervalVals.length ? Math.max.apply(null, intervalVals) : 0;
     }
 
-    /* Wh → kWh 변환: 일 사용량이 50,000 초과 시 단위 Wh 가정 */
-    var wattUnit = dayKwh > 50000;
+    dayRecords.push({
+      year: year, month: month, day: day,
+      dayKwh: dayKwh, dayMaxInterval: dayMaxInterval, intervalVals: intervalVals
+    });
+  }
+
+  /* 파일 전체에서 "구간(1개 15분/1시간 등) 값"의 최댓값으로 Wh/kWh를 1회만 판정.
+     대형 사업장이라도 구간 하나의 값이 10만kWh를 넘는 경우는 사실상 없어(예: 1시간
+     구간이면 순간 100MW급) 날짜별로 흔들리지 않는 안전한 임계값으로 쓸 수 있음. */
+  var globalMaxInterval = 0;
+  dayRecords.forEach(function (d) {
+    if (d.dayMaxInterval > globalMaxInterval) globalMaxInterval = d.dayMaxInterval;
+  });
+  var wattUnit = globalMaxInterval > 100000;
+
+  /* ── 2차 패스: 월별 집계(단위 보정은 파일 전체에 동일하게 적용) ── */
+  var monthly = {};
+  dayRecords.forEach(function (d) {
+    var dayKwh = d.dayKwh, dayMaxInterval = d.dayMaxInterval, intervalVals = d.intervalVals;
     if (wattUnit) { dayKwh /= 1000; dayMaxInterval /= 1000; }
 
-    var key = year + '-' + month;
-    if (!monthly[key]) monthly[key] = { year: year, month: month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0 };
+    var key = d.year + '-' + d.month;
+    if (!monthly[key]) monthly[key] = { year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0 };
     monthly[key].kwh += dayKwh;
-    /* 요금적용전력(순시 최대수요, kW) = 15분 구간 최대 에너지(kWh) × 4 */
+    /* 요금적용전력(순시 최대수요, kW) = 구간 최대 에너지(kWh) × intervalToKw */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
 
     /* 시간대별(경부하/중간부하/최대부하) 실측 집계 — intervalVals[ti]는 항상 정확히 ti번째 구간 */
-    var dow    = new Date(year, month - 1, day).getDay(); /* 0=일 ~ 6=토 */
-    var season = getSeason(month);
-    for (var ti = 0; ti < 96; ti++) {
+    var dow    = new Date(d.year, d.month - 1, d.day).getDay(); /* 0=일 ~ 6=토 */
+    var season = getSeason(d.month);
+    for (var ti = 0; ti < intervalVals.length; ti++) {
       var val = intervalVals[ti];
       if (val === undefined || val === null) continue;
-      var hour   = Math.floor(ti / 4);
+      var hour   = Math.floor(ti * stepMin / 60);
       var bucket = getTouBucket(hour, season);
       if (dow === 6 && bucket === 'hi') bucket = 'mid'; /* 토요일: 최대부하→중간부하 */
       monthly[key][bucket] += wattUnit ? val / 1000 : val;
     }
-  }
+  });
 
   return Object.values(monthly)
     .sort(function (a, b) { return a.year !== b.year ? a.year - b.year : a.month - b.month; })
     .map(function (m) {
       return {
         year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount),
-        demandKw: Math.round(m.maxInterval * 4),
+        demandKw: Math.round(m.maxInterval * intervalToKw),
         lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi)
       };
     });
