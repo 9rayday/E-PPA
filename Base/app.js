@@ -342,14 +342,6 @@ function onLoaded(filename, monthly) {
     warnEl.textContent = '';
   }
 
-  /* 평균 단가 자동 산출 */
-  var totalAmount = monthly.reduce(function (s, m) { return s + m.amount; }, 0);
-  if (totalKwh > 0 && totalAmount > 0) {
-    var avgUnit = Math.round(totalAmount / totalKwh);
-    document.getElementById('inp-tariff').value = avgUnit;
-    document.getElementById('tariff-auto').textContent = '자동';
-  }
-
   /* 설정 패널 표시 */
   var cfg = document.getElementById('cfg');
   cfg.style.display = 'flex';
@@ -383,7 +375,7 @@ function runAnalysis() {
   if (!cap || cap <= 0) { alert('태양광 설치 용량을 입력하세요.'); return; }
   if (!ppa || ppa <= 0) { alert('PPA 단가를 입력하세요.'); return; }
 
-  var tariff  = parseFloat(document.getElementById('inp-tariff').value) || 0;
+  var tariffPlan = document.getElementById('inp-tariff-plan').value || '';
   var ghi     = getGHI();
   var dist    = getMonthlyDist();
   var monthly = parsedData.monthly;
@@ -405,7 +397,7 @@ function runAnalysis() {
 
   localStorage.setItem('eppa_results', JSON.stringify({
     monthly:     enriched,
-    params:      { region: _region, cap: cap, ppa: ppa, tariff: tariff, pr: 0.82 },
+    params:      { region: _region, cap: cap, ppa: ppa, tariffPlan: tariffPlan, pr: 0.82 },
     ghi:         ghi,
     generatedAt: new Date().toISOString()
   }));

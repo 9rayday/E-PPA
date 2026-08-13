@@ -1485,6 +1485,7 @@ function runSim(){
   var totalEff0=monthly.reduce(function(s,m){return s+m.eff;},0);
   /* 실데이터일 때만 params 값으로 덮어씀 — 샘플 데이터는 HTML 기본값 유지 */
   if(!isSample){
+    if(params.tariffPlan && KEPCO[params.tariffPlan]) document.getElementById('sel-tariff').value=params.tariffPlan;
     if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
     if(params.cap){
       document.getElementById('inp-cap').value=params.cap;

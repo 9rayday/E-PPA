@@ -221,8 +221,31 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
             <input class="inp-field" id="inp-ppa" type="number" value="187" placeholder="예: 187" min="50">
           </div>
           <div class="inp-row">
-            <div class="inp-label">현재 한전 평균단가 <span style="font-size:10px;color:var(--tx4)">원/kWh</span><span class="inp-auto" id="tariff-auto"></span></div>
-            <input class="inp-field" id="inp-tariff" type="number" placeholder="청구서 기준 자동산출">
+            <div class="inp-label">한전 요금제 <span style="font-size:10px;color:var(--tx4)">미선택 시 기본값</span></div>
+            <select class="inp-field" id="inp-tariff-plan">
+              <option value="">미선택 (기본값 사용)</option>
+              <optgroup label="산업용(갑) I — 계절별 단일단가">
+                <option value="갑I_저압">저압</option>
+                <option value="갑I_고압A1">고압A 선택I</option>
+                <option value="갑I_고압A2">고압A 선택II</option>
+                <option value="갑I_고압B1">고압B 선택I</option>
+                <option value="갑I_고압B2">고압B 선택II</option>
+              </optgroup>
+              <optgroup label="산업용(갑) II — 1,000kW 미만 (시간대별)">
+                <option value="갑II_고압A1">고압A 선택I</option>
+                <option value="갑II_고압A2">고압A 선택II</option>
+                <option value="갑II_고압B1">고압B 선택I</option>
+                <option value="갑II_고압B2">고압B 선택II</option>
+              </optgroup>
+              <optgroup label="산업용(을) — 300kW 이상 (시간대별)">
+                <option value="을_고압A1">고압A 선택I</option>
+                <option value="을_고압A2">고압A 선택II</option>
+                <option value="을_고압A3">고압A 선택III</option>
+                <option value="을_고압B1">고압B 선택I</option>
+                <option value="을_고압B2">고압B 선택II</option>
+                <option value="을_고압B3">고압B 선택III</option>
+              </optgroup>
+            </select>
           </div>
         </div>
 
