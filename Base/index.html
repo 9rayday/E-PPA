@@ -211,6 +211,20 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
         </div>
 
         <div class="inp-row">
+          <div class="inp-label">월별 발전량 분포 기준</div>
+          <div class="region-sel">
+            <button class="region-btn active" id="btn-dist-actual" onclick="selectDistSource('actual')">
+              실측 기반
+              <span class="region-sub">3개년 지역별 실측 분포</span>
+            </button>
+            <button class="region-btn" id="btn-dist-forecast" onclick="selectDistSource('forecast')">
+              예측값
+              <span class="region-sub">GHI 모델 기반 이론치</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="inp-row">
           <div class="inp-label">태양광 설치 용량<span style="font-size:10px;color:var(--tx4)">kWp</span></div>
           <input class="inp-field" id="inp-capacity" type="number" value="1000" placeholder="예: 1000" min="1" step="0.1">
         </div>

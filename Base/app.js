@@ -4,6 +4,7 @@
 
 let parsedData = null; // { monthly, type }
 var _region = 'sudo'; // 'sudo' | 'nonsudo'
+var _distSource = 'actual'; // 'actual'(3개년 실측 분포, 기본값) | 'forecast'(GHI 모델 기반 이론치)
 
 /* NASA POWER API 2023-2025 월별 GHI 3개년 평균 (kWh/m²/day, 월1~12)
    수도권: 서울 37.57°N 126.98°E
@@ -35,7 +36,27 @@ var MONTHLY_DIST_REGION = {
   nonsudo: [5.88, 6.55, 9.14, 9.70, 10.62, 10.37, 9.05, 10.03, 7.97, 7.55, 7.12, 6.04]
 };
 
+function selectDistSource(s) {
+  _distSource = s;
+  document.getElementById('btn-dist-actual').classList.toggle('active', s === 'actual');
+  document.getElementById('btn-dist-forecast').classList.toggle('active', s === 'forecast');
+}
+
+/* 실측 분포(MONTHLY_DIST_REGION) 대신 "예측값"을 고르면, NASA POWER GHI(일사량)
+   모델 자체가 함의하는 월별 비중(GHI[월]×해당월 일수, 연간 합으로 정규화)을 씀.
+   실측 분포처럼 연도와 무관한 고정 비율표를 쓰기 위해 평년(365일) 기준으로 계산 —
+   윤년 2월 하루 차이는 비중에 0.1%p 미만 영향이라 연도별로 다시 계산할 필요는 없음. */
+function getGHIDist() {
+  var ghi = getGHI(), days = [31,28,31,30,31,30,31,31,30,31,30,31];
+  var raw = {}, total = 0;
+  for (var m = 1; m <= 12; m++) { raw[m] = ghi[m] * days[m - 1]; total += raw[m]; }
+  var dist = {};
+  for (var m2 = 1; m2 <= 12; m2++) dist[m2] = total > 0 ? raw[m2] / total : 1 / 12;
+  return dist;
+}
+
 function getMonthlyDist() {
+  if (_distSource === 'forecast') return getGHIDist();
   var vals = MONTHLY_DIST_REGION[_region], dist = {};
   for (var m = 1; m <= 12; m++) dist[m] = vals[m - 1] / 100;
   return dist;
