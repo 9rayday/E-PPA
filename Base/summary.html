@@ -96,6 +96,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 
 /* fn3 */
 #fn3{padding:22px 26px;display:flex;flex-direction:column;gap:14px;position:relative}
+#fn4{padding:22px 26px;display:flex;flex-direction:column;gap:14px}
 
 /* Lead Gate */
 #lead-gate{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;background:rgba(16,16,16,.82);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
@@ -206,6 +207,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8H3M7 12l-4-4 4-4"/></svg>
     돌아가기
   </button>
+  <button class="btn-back" id="btn-admin" onclick="onAdminClick()" style="margin-left:8px">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+    관리자
+  </button>
 </header>
 
 <div class="page">
@@ -215,6 +220,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <button class="fn-btn active" data-fn="fn1">① 전력 개요</button>
       <button class="fn-btn" data-fn="fn2">② 상세 분석</button>
       <button class="fn-btn" data-fn="fn3">③ 요금 분석</button>
+      <button class="fn-btn" id="fn-btn-admin" data-fn="fn4" style="display:none">④ 관리자</button>
     </div>
 
     <!-- ① 전력 개요 -->
@@ -394,52 +400,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
 
-        <!-- Row 4: 기후환경요금 / 연료비조정 / 거래수수료 / 부가정산금 -->
-        <div class="sim-row sim-row-4">
-          <div>
-            <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-climate" type="number" value="9" step="0.1" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">거래수수료 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fee-trade" type="number" value="0.1193" step="0.001" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
-            <input class="inp-s" id="inp-fee-adj" type="number" value="9.98" step="0.01" onchange="onAssumptionChange()">
-          </div>
-        </div>
-
-        <!-- Row 5: 손실반영 / REC 가중치 / 일요일 구분 / 공휴일 -->
-        <div class="sim-row sim-row-4">
-          <div>
-            <div class="form-label">전력손실반영금액</div>
-            <select class="sel-field" id="sel-loss" onchange="onAssumptionChange()">
-              <option value="on">반영 (자가소비×3.52%×SMP, 추정)</option>
-              <option value="off" selected>미반영</option>
-            </select>
-          </div>
-          <div>
-            <div class="form-label">초과발전 REC 가중치</div>
-            <input class="inp-s" id="inp-recw" type="number" value="1.2" step="0.1" min="0" onchange="onAssumptionChange()">
-          </div>
-          <div>
-            <div class="form-label">일요일 요금 구분</div>
-            <select class="sel-field" id="sel-sunday" onchange="onAssumptionChange()">
-              <option value="holiday" selected>공휴일 취급 (전 시간 경부하)</option>
-              <option value="weekday">평일 취급</option>
-            </select>
-          </div>
-          <div>
-            <div class="form-label">공휴일 목록 <span class="form-hint">YYYY-MM-DD · 임시공휴일 제외</span></div>
-            <textarea class="inp-s" id="inp-holidays" rows="2" style="resize:vertical;font-size:10px" onchange="onAssumptionChange()"></textarea>
-          </div>
-        </div>
-
       </div>
 
       <!-- PPA 단가 구조 -->
@@ -487,6 +447,55 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <div class="grid-title" style="margin-top:16px;margin-bottom:8px">20년 상세 내역 (백만원)</div>
       <div id="sim-yearly-table"></div>
 
+    </section>
+
+    <!-- ④ 관리자 -->
+    <section id="fn4" style="display:none">
+      <div class="sim-section">
+        <div class="grid-title" style="margin-bottom:4px">요금 분석 고정값 설정</div>
+        <div class="sim-row sim-row-4">
+          <div>
+            <div class="form-label">기후환경요금 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-climate" type="number" value="9" step="0.1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">연료비조정 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fuel" type="number" value="5" step="0.1" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">거래수수료 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fee-trade" type="number" value="0.1193" step="0.001" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">부가정산금 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-fee-adj" type="number" value="9.98" step="0.01" onchange="onAssumptionChange()">
+          </div>
+        </div>
+        <div class="sim-row sim-row-4">
+          <div>
+            <div class="form-label">전력손실반영금액</div>
+            <select class="sel-field" id="sel-loss" onchange="onAssumptionChange()">
+              <option value="on">반영 (자가소비×3.52%×SMP, 추정)</option>
+              <option value="off" selected>미반영</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">초과발전 REC 가중치</div>
+            <input class="inp-s" id="inp-recw" type="number" value="1.2" step="0.1" min="0" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">일요일 요금 구분</div>
+            <select class="sel-field" id="sel-sunday" onchange="onAssumptionChange()">
+              <option value="holiday" selected>공휴일 취급 (전 시간 경부하)</option>
+              <option value="weekday">평일 취급</option>
+            </select>
+          </div>
+          <div>
+            <div class="form-label">공휴일 목록 <span class="form-hint">YYYY-MM-DD · 임시공휴일 제외</span></div>
+            <textarea class="inp-s" id="inp-holidays" rows="2" style="resize:vertical;font-size:10px" onchange="onAssumptionChange()"></textarea>
+          </div>
+        </div>
+      </div>
     </section>
 
   </div>
@@ -775,7 +784,7 @@ document.querySelectorAll('.fn-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.fn-btn').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');
-    ['fn1','fn2','fn3'].forEach(function(id){
+    ['fn1','fn2','fn3','fn4'].forEach(function(id){
       document.getElementById(id).style.display=(id===btn.dataset.fn)?'':'none';
     });
     /* 탭이 display:none→표시로 바뀌면 실측 크기가 달라지므로 해당 탭 차트를 다시 그림 */
@@ -784,6 +793,34 @@ document.querySelectorAll('.fn-btn').forEach(function(btn){
     if(btn.dataset.fn==='fn3'){onAssumptionChange();checkGate();}
   });
 });
+
+/* ── 관리자 탭(요금 고정값 설정) — 한 번 통과하면 이 브라우저에서 계속 노출.
+   비밀번호는 평문으로 소스에 두지 않고 해시값만 비교(페이지 소스를 봐도 바로
+   드러나지 않게 하려는 최소한의 가림막 — 클라이언트 전용 앱이라 완전한 보안은
+   아님). */
+function _pwHash(s){
+  var h=0;
+  for(var i=0;i<s.length;i++) h=(h*31+s.charCodeAt(i))>>>0;
+  return h;
+}
+var ADMIN_PW_HASH=1723927;
+function unlockAdminTab(){
+  document.getElementById('fn-btn-admin').style.display='';
+}
+function onAdminClick(){
+  if(localStorage.getItem('eppa_admin_ok')){
+    unlockAdminTab();
+    document.getElementById('fn-btn-admin').click();
+    return;
+  }
+  var pw=prompt('관리자 비밀번호를 입력하세요.');
+  if(pw===null) return;
+  if(_pwHash(pw)!==ADMIN_PW_HASH){ alert('비밀번호가 올바르지 않습니다.'); return; }
+  localStorage.setItem('eppa_admin_ok','1');
+  unlockAdminTab();
+  document.getElementById('fn-btn-admin').click();
+}
+if(localStorage.getItem('eppa_admin_ok')) unlockAdminTab();
 /* ══════════ 시간대(TOU)·휴일 판정 ══════════
    한전 2026.6.1 요금표 기준: 경부하 22~08시(전 계절), 중간/최대는 계절별.
    토요일: 최대부하 사용량 → 중간부하로 계량 / 공휴일(일요일 포함, 관공서 공휴일 규정): 전 시간 경부하.
@@ -994,9 +1031,42 @@ function renderNarrative(){
     var pct=contractKw>0?Math.round(avgDemand/contractKw*100):0;
     html+='<br>요금적용전력 평균은 <b>'+fmt(avgDemand)+'kW</b>로 계약전력('+fmt(contractKw)+'kW) 대비 '+pct+'% 수준이며, 계약전력을 초과한 달은 '+n+'개월 중 <b'+(overN>0?' class="warn"':'')+'>'+overN+'개월</b>입니다.';
   }
+  var excA=excessCauseAnalysis();
+  if(excA.total>0){
+    html+='<br>초과발전량이 발생한 이유는 <b>'+excA.dowReason+'</b>, <b>'+excA.seasReason+'</b>입니다.';
+  }
   if(DAYS_SYNTH&&!isSample) html+='<br><span style="color:var(--orange)">※ 월별 청구서만 업로드되어 시간대별 부하 형태를 일반 2교대 패턴으로 가정했습니다. 정확한 분석은 AMI(시간·15분 단위) 데이터가 필요합니다.</span>';
   if(isSample) html+='<br><span style="color:var(--tx4)">※ 샘플 데이터입니다.</span>';
   el.innerHTML=html;
+}
+
+/* 초과발전이 어떤 요일·계절에 집중되는지 분석 — 전력개요 서술문("초과발전량이
+   발생한 이유는 **X**, **Y**입니다")용. 요일은 주말(토·일) 합산이 전체 초과의
+   과반이면 "주말(토·일)"로 묶어 말하고, 아니면 가장 큰 단일 요일을 지목한다. */
+function excessCauseAnalysis(){
+  var mode=_introMode,annual0=capNow()*getHours()*365;
+  var dowEx=new Array(7).fill(0),seasEx={summer:0,spring_fall:0,winter:0},total=0;
+  DAYS.forEach(function(d){
+    var gday=annual0*DIST[d.m-1]/d.dim,shape=mode==='realtime'?solarShape(d.m):null;
+    var s=getSeason(d.m);
+    for(var h=0;h<24;h++){
+      var L=d.h[h],g=shape?gday*shape[h]:gday/24,ex=g>L?g-L:0;
+      dowEx[d.w]+=ex; seasEx[s]+=ex; total+=ex;
+    }
+  });
+  var DOW_NAMES=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
+  var dowReason;
+  if(total>0 && (dowEx[0]+dowEx[6])>total*0.5){
+    dowReason='주말(토·일)';
+  } else {
+    var maxDow=0;
+    for(var dd=1;dd<7;dd++) if(dowEx[dd]>dowEx[maxDow]) maxDow=dd;
+    dowReason=DOW_NAMES[maxDow];
+  }
+  var SEAS_NAMES={summer:'여름철',spring_fall:'봄·가을철',winter:'겨울철'};
+  var seasKeys=['summer','spring_fall','winter'],maxSeas=seasKeys[0];
+  seasKeys.forEach(function(s){ if(seasEx[s]>seasEx[maxSeas]) maxSeas=s; });
+  return {dowEx:dowEx,seasEx:seasEx,total:total,dowReason:dowReason,seasReason:SEAS_NAMES[maxSeas]};
 }
 
 /* 요금적용전력 결정(한전 전기공급약관 시행세칙) — 직전 12개월 중 성수기(7·8·9·12·1·2월)와
