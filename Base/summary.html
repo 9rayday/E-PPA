@@ -56,7 +56,16 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .cap-suggest-btn{margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--rs);cursor:pointer;font-family:inherit}
 .cap-suggest-btn:hover{background:rgba(218,119,86,.12)}
 .chart-wrap{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 14px;display:flex;flex-direction:column;min-height:200px}
-.chart-title{font-size:11px;font-weight:600;color:var(--tx3);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.chart-title{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
+.chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px;flex-shrink:0;flex-wrap:wrap}
+.chart-nav{display:flex;align-items:center;gap:10px}
+.chart-nav-btn{width:24px;height:24px;border:1px solid var(--border2);background:var(--bg3);border-radius:50%;color:var(--tx2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;line-height:1;transition:all .15s;flex-shrink:0;font-family:inherit}
+.chart-nav-btn:hover:not(:disabled){border-color:var(--orange);color:var(--orange)}
+.chart-nav-btn:disabled{opacity:.3;cursor:not-allowed}
+.chart-nav-label{font-size:13px;font-weight:700;color:var(--tx1);min-width:92px;text-align:center;font-family:'JetBrains Mono',monospace}
+.chart-mode-toggle{display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--rs);padding:2px;flex-shrink:0}
+.chart-mode-btn{padding:5px 11px;border:none;background:transparent;color:var(--tx4);font-size:11px;font-weight:600;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
+.chart-mode-btn.active{background:var(--orange);color:#fff}
 #chart-area{flex:1;min-height:0}
 #chart-area svg{width:100%;height:100%;display:block}
 .chart-legend{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap;flex-shrink:0}
@@ -232,9 +241,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <div class="metrics" id="metric-cards"></div>
       <div class="narrative-box" id="narrative-summary"></div>
       <div class="chart-wrap">
-        <div class="chart-title">전력데이터 분석</div>
+        <div class="chart-head">
+          <div class="chart-title" id="chart-title-annual">전력데이터 분석</div>
+          <div class="chart-nav" id="chart-nav" style="display:none">
+            <button type="button" class="chart-nav-btn" id="chart-nav-prev" onclick="stepDetailMonth(-1)">◀</button>
+            <span class="chart-nav-label" id="chart-nav-label">월</span>
+            <button type="button" class="chart-nav-btn" id="chart-nav-next" onclick="stepDetailMonth(1)">▶</button>
+          </div>
+          <div class="chart-mode-toggle">
+            <button type="button" class="chart-mode-btn active" id="btn-mode-annual" onclick="setChartMode('annual')">연간 종합</button>
+            <button type="button" class="chart-mode-btn" id="btn-mode-monthly" onclick="setChartMode('monthly')">월별 보기</button>
+          </div>
+        </div>
         <div id="chart-area"></div>
-        <div class="chart-legend">
+        <div class="chart-legend" id="chart-legend">
           <div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>
           <div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>
@@ -574,6 +594,8 @@ var effMonthly=monthly;
 var params =res.params;
 var daily  =res.daily     ||null;
 var hrGrid =res.hourlyGrid||null;
+var _chartMode='annual';      /* 'annual'(연간 종합, 기본) | 'monthly'(슬라이드로 월별 상세 보기) */
+var _detailMonthIdx=0;        /* 'monthly' 모드에서 현재 보고 있는 effMonthly 인덱스 */
 
 /* 샘플 데이터 사용 시 더미 daily/hrGrid 생성 */
 if(!daily){
@@ -703,8 +725,8 @@ function updateEffMonthly(){
     effMonthly=monthly.map(function(m){
       var g=Math.round(m.gen*sc);
       var e=Math.min(g,m.kwh); /* 스케일된 발전량을 사용량으로 다시 클리핑 — eff가 kwh를 넘는 걸 방지 */
-      return {month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0,
-        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
+      return {year:m.year,month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0,
+        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi,days:m.days||null}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
     });
   } else {
     effMonthly=monthly;
@@ -804,8 +826,36 @@ function renderMetrics(){
   }).join('');
 }
 
-/* ── 기능 1: 차트 ── */
+/* ── 기능 1: 차트 모드 전환(연간 종합 ⇄ 월별 슬라이드) — 월별 모드는 선택한 달
+   "안에서" 일자별 소비/발전 패턴을 같은 영역그래프 스타일로 별도 렌더링 */
+var ANNUAL_LEGEND_HTML=
+  '<div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>'
+  +'<div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>'
+  +'<div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>';
+
 function renderChart(){
+  if(_chartMode==='monthly') renderChartMonthly();
+  else renderChartAnnual();
+}
+
+function setChartMode(mode){
+  _chartMode=mode;
+  document.getElementById('btn-mode-annual').classList.toggle('active',mode==='annual');
+  document.getElementById('btn-mode-monthly').classList.toggle('active',mode==='monthly');
+  document.getElementById('chart-title-annual').style.display=mode==='annual'?'':'none';
+  document.getElementById('chart-nav').style.display=mode==='monthly'?'flex':'none';
+  if(mode==='annual') document.getElementById('chart-legend').innerHTML=ANNUAL_LEGEND_HTML;
+  if(mode==='monthly') _detailMonthIdx=Math.max(0,Math.min(_detailMonthIdx,effMonthly.length-1));
+  renderChart();
+}
+
+function stepDetailMonth(delta){
+  _detailMonthIdx=Math.max(0,Math.min(_detailMonthIdx+delta,effMonthly.length-1));
+  renderChartMonthly();
+}
+
+/* ── 기능 1: 차트 — 연간 종합(영역 그래프) ── */
+function renderChartAnnual(){
   var data=effMonthly,n=data.length;
   if(!n) return;
   var maxV=Math.max.apply(null,data.map(function(m){return Math.max(m.kwh,m.gen);}));
@@ -818,20 +868,9 @@ function renderChart(){
   function px(i){return pL+(n>1?(i/(n-1))*iW:iW/2);}
   function pyC(m){return pT+iH-(m.kwh/maxV)*iH;}
   function pyG(m){return pT+iH-(m.gen/maxV)*iH;}
-  function smooth(pts){
-    if(pts.length<2) return '';
-    var d='M'+pts[0][0].toFixed(1)+','+pts[0][1].toFixed(1),t=0.18;
-    for(var i=0;i<pts.length-1;i++){
-      var p0=pts[Math.max(0,i-1)],p1=pts[i],p2=pts[i+1],p3=pts[Math.min(pts.length-1,i+2)];
-      d+=' C'+(p1[0]+(p2[0]-p0[0])*t).toFixed(1)+','+(p1[1]+(p2[1]-p0[1])*t).toFixed(1)
-        +' '+(p2[0]-(p3[0]-p1[0])*t).toFixed(1)+','+(p2[1]-(p3[1]-p1[1])*t).toFixed(1)
-        +' '+p2[0].toFixed(1)+','+p2[1].toFixed(1);
-    }
-    return d;
-  }
 
-  var cLine=smooth(data.map(function(m,i){return[px(i),pyC(m)];}));
-  var gLine=smooth(data.map(function(m,i){return[px(i),pyG(m)];}));
+  var cLine=smoothLine(data.map(function(m,i){return[px(i),pyC(m)];}));
+  var gLine=smoothLine(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
   /* 초과발전 영역: gen fill을 "kwh 곡선 위쪽" clipPath로 마스킹
@@ -839,7 +878,7 @@ function renderChart(){
   var revPts=[];
   for(var _i=n-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
   /* clipPath 영역: 차트 상단 ~ kwh 곡선까지 (= kwh 곡선 위쪽) */
-  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smooth(revPts).replace(/^M/,'L')+' Z';
+  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smoothLine(revPts).replace(/^M/,'L')+' Z';
   /* 빨간 영역: gen fill 전체를 clipPath로 자름 → kwh 위로 튀어나온 gen만 표시 */
   var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
 
@@ -859,6 +898,110 @@ function renderChart(){
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
     +'<path d="'+genAreaD+'" fill="rgba(220,80,80,.30)" clip-path="url(#ex-clip)"/>'
+    +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
+    +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
+    +dots+labels+'</svg>';
+}
+
+/* 선택한 달의 "안에서" 일자별 {day, kwh, gen} 패턴을 돌려줌.
+   - AMI 실측 데이터(m.days)가 있으면 실제 일별 사용량 + 발전량은 그 달 평균을 균등 배분(일별 일사량 실측치가 없어 평탄선이 유일하게 솔직한 근사)
+   - 샘플(데모) 모드는 결정적(랜덤X) 요일 가중 패턴으로 합성 — 매번 같은 그래프가 나와야 데모가 일관됨
+   - 월별 청구서 등 일별 데이터가 없는 실제 업로드는 null → 플레이스홀더 표시 */
+function getMonthDailyPattern(m,dim){
+  var genPerDay=m.gen/dim;
+  if(m.days && m.days.length){
+    var byDay={};
+    m.days.forEach(function(d){byDay[d.day]=d.kwh;});
+    var out=[];
+    for(var d2=1;d2<=dim;d2++) out.push({day:d2,kwh:byDay[d2]||0,gen:genPerDay});
+    return out;
+  }
+  if(isSample){
+    var dowF=[0.72,1.05,1.08,1.10,1.08,1.00,0.74];
+    var avg=m.kwh/dim,out2=[];
+    for(var d3=1;d3<=dim;d3++){
+      var dow=new Date(m.year,m.month-1,d3).getDay();
+      /* Math.random() 대신 날짜 기반 결정적 흔들림 — 리렌더해도 같은 모양 유지 */
+      var wig=0.92+0.16*(Math.sin(d3*12.9898)*0.5+0.5);
+      out2.push({day:d3,kwh:Math.round(avg*dowF[dow]*wig),gen:genPerDay});
+    }
+    return out2;
+  }
+  return null;
+}
+
+/* ── 기능 1: 차트 — 월별 슬라이드. 선택한 달 "안에서" 일자별 소비/발전 패턴을
+   종합 그래프와 같은 영역그래프 스타일로 그려, 초과발전이 언제 발생하는지 보여줌 ── */
+function renderChartMonthly(){
+  var n=effMonthly.length;
+  if(!n) return;
+  _detailMonthIdx=Math.max(0,Math.min(_detailMonthIdx,n-1));
+  var m=effMonthly[_detailMonthIdx];
+  var dim=new Date(m.year,m.month,0).getDate();
+
+  document.getElementById('chart-nav-label').textContent=m.year+'년 '+m.month+'월';
+  document.getElementById('chart-nav-prev').disabled=_detailMonthIdx<=0;
+  document.getElementById('chart-nav-next').disabled=_detailMonthIdx>=n-1;
+
+  var el=document.getElementById('chart-area');
+  var data=getMonthDailyPattern(m,dim);
+
+  if(!data){
+    el.innerHTML='<div class="ami-placeholder">AMI(15분·1시간 단위) 데이터가 있어야<br>월별 일간 패턴을 볼 수 있습니다</div>';
+    document.getElementById('chart-legend').innerHTML='';
+    return;
+  }
+
+  var excess=Math.max(0,m.gen-m.kwh);
+  var selfRate=m.kwh>0?Math.min(100,m.eff/m.kwh*100):0;
+  var excessDays=data.filter(function(d){return d.gen>d.kwh;}).length;
+  document.getElementById('chart-legend').innerHTML=
+    '<span style="color:var(--tx2)">월 사용량 <b style="color:var(--tx1)">'+fmt(m.kwh)+'kWh</b></span>'
+    +'<span style="color:var(--tx2)">월 발전량 <b style="color:var(--green)">'+fmt(m.gen)+'kWh</b></span>'
+    +'<span style="color:var(--tx2)">자가소비율 <b style="color:var(--orange)">'+selfRate.toFixed(1)+'%</b></span>'
+    +'<span style="color:var(--tx2)">초과발전 <b style="color:#dc5050">'+fmt(excess)+'kWh · '+excessDays+'일</b></span>';
+
+  var n2=data.length;
+  var maxV=Math.max.apply(null,data.map(function(d){return Math.max(d.kwh,d.gen);}));
+  if(!maxV){ el.innerHTML=''; return; }
+  var W=el.clientWidth||800,H=el.clientHeight||260;
+  if(W<100){W=800;H=260;}
+  var pL=14,pR=14,pT=16,pB=28,iW=W-pL-pR,iH=H-pT-pB,baseY=pT+iH;
+
+  function px(i){return pL+(n2>1?(i/(n2-1))*iW:iW/2);}
+  function pyC(d){return pT+iH-(d.kwh/maxV)*iH;}
+  function pyG(d){return pT+iH-(d.gen/maxV)*iH;}
+
+  var cLine=smoothLine(data.map(function(d,i){return[px(i),pyC(d)];}));
+  var gLine=smoothLine(data.map(function(d,i){return[px(i),pyG(d)];}));
+  var dots='',labels='';
+
+  var revPts=[];
+  for(var _i=n2-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
+  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smoothLine(revPts).replace(/^M/,'L')+' Z';
+  var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
+
+  /* 날이 많아 모든 날짜를 다 못 그리므로 대략 10개 안팎만 라벨 표시 */
+  var labelStep=Math.max(1,Math.round(n2/10));
+  data.forEach(function(d,i){
+    var x=px(i);
+    if(i%labelStep===0 || i===n2-1){
+      labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+d.day+'일</text>';
+    }
+    var over=d.gen>d.kwh;
+    dots+='<circle cx="'+x+'" cy="'+pyC(d).toFixed(1)+'" r="2.5" fill="rgba(160,160,160,.85)"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(d).toFixed(1)+'" r="2.5" fill="'+(over?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
+  });
+
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
+    +'<defs>'
+    +'<linearGradient id="gc2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
+    +'<linearGradient id="gg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'<clipPath id="ex-clip2"><path d="'+clipD+'"/></clipPath>'
+    +'</defs>'
+    +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc2)"/>'
+    +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg2)"/>'
+    +'<path d="'+genAreaD+'" fill="rgba(220,80,80,.30)" clip-path="url(#ex-clip2)"/>'
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
     +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';

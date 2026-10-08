@@ -268,8 +268,9 @@ function parseAMI(rows) {
     if (wattUnit) { dayKwh /= 1000; dayMaxInterval /= 1000; }
 
     var key = d.year + '-' + d.month;
-    if (!monthly[key]) monthly[key] = { year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0 };
+    if (!monthly[key]) monthly[key] = { year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0, days: [] };
     monthly[key].kwh += dayKwh;
+    monthly[key].days.push({ day: d.day, kwh: Math.round(dayKwh) });
     /* 요금적용전력(순시 최대수요, kW) = 구간 최대 에너지(kWh) × intervalToKw */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
 
@@ -292,7 +293,8 @@ function parseAMI(rows) {
       return {
         year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount),
         demandKw: Math.round(m.maxInterval * intervalToKw),
-        lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi)
+        lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi),
+        days: m.days.sort(function (a, b) { return a.day - b.day; })
       };
     });
 }
@@ -412,7 +414,8 @@ function runAnalysis() {
       eff: Math.round(eff),
       selfRate: selfRate,
       demandKw: m.demandKw,
-      lo: m.lo, mid: m.mid, hi: m.hi
+      lo: m.lo, mid: m.mid, hi: m.hi,
+      days: m.days || null
     };
   });
 
