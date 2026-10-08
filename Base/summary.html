@@ -129,6 +129,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .slider-val{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--orange);min-width:36px;text-align:right}
 .sep{height:1px;background:var(--border);flex-shrink:0}
 
+/* 공휴일 달력 선택기 */
+.holiday-chips{display:flex;flex-wrap:wrap;gap:4px;min-height:22px;margin-bottom:6px}
+.holiday-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bg3);border:1px solid var(--border2);border-radius:4px;padding:2px 4px 2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--tx2)}
+.holiday-chip button{background:none;border:none;color:var(--tx4);cursor:pointer;font-size:12px;line-height:1;padding:2px 4px;font-family:inherit}
+.holiday-chip button:hover{color:var(--orange)}
+.holiday-add-btn{width:100%;padding:6px;font-size:11px;border:1px dashed var(--border2);background:transparent;color:var(--tx3);border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.holiday-add-btn:hover{border-color:var(--orange);color:var(--orange)}
+.holiday-cal{position:absolute;z-index:50;top:100%;left:0;margin-top:4px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:10px;width:240px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.holiday-cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--tx1)}
+.holiday-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.holiday-cal-dow{text-align:center;font-size:9px;color:var(--tx4);padding:2px 0}
+.holiday-cal-day{text-align:center;font-size:11px;color:var(--tx2);padding:5px 0;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace}
+.holiday-cal-day:hover{background:var(--bg4)}
+.holiday-cal-day.sel{background:var(--orange);color:#fff;font-weight:700}
+.holiday-cal-done{width:100%;margin-top:8px;padding:6px;font-size:11px;border:none;background:var(--orange);color:#fff;border-radius:var(--rs);cursor:pointer;font-family:inherit}
+
 /* fee table */
 .fee-tbl-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);overflow:auto}
 .fee-tbl{width:100%;border-collapse:collapse}
@@ -209,7 +225,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   </button>
   <button class="btn-back" id="btn-admin" onclick="onAdminClick()" style="margin-left:8px">
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
-    관리자
+    설정
   </button>
 </header>
 
@@ -220,7 +236,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       <button class="fn-btn active" data-fn="fn1">① 전력 개요</button>
       <button class="fn-btn" data-fn="fn2">② 상세 분석</button>
       <button class="fn-btn" data-fn="fn3">③ 요금 분석</button>
-      <button class="fn-btn" id="fn-btn-admin" data-fn="fn4" style="display:none">④ 관리자</button>
+      <button class="fn-btn" id="fn-btn-admin" data-fn="fn4" style="display:none">④ 설정</button>
     </div>
 
     <!-- ① 전력 개요 -->
@@ -449,7 +465,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
     </section>
 
-    <!-- ④ 관리자 -->
+    <!-- ④ 설정 -->
     <section id="fn4" style="display:none">
       <div class="sim-section">
         <div class="grid-title" style="margin-bottom:4px">요금 분석 고정값 설정</div>
@@ -490,11 +506,47 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="weekday">평일 취급</option>
             </select>
           </div>
-          <div>
-            <div class="form-label">공휴일 목록 <span class="form-hint">YYYY-MM-DD · 임시공휴일 제외</span></div>
-            <textarea class="inp-s" id="inp-holidays" rows="2" style="resize:vertical;font-size:10px" onchange="onAssumptionChange()"></textarea>
+          <div style="position:relative">
+            <div class="form-label">공휴일 목록 <span class="form-hint">임시공휴일 제외</span></div>
+            <div class="holiday-chips" id="holiday-chips"></div>
+            <button type="button" class="holiday-add-btn" id="holiday-add-btn" onclick="toggleHolidayCal()">+ 날짜 추가</button>
+            <div class="holiday-cal" id="holiday-cal" style="display:none">
+              <div class="holiday-cal-head">
+                <button type="button" class="chart-nav-btn" onclick="holidayCalNav(-1)">◀</button>
+                <span id="holiday-cal-label">년 월</span>
+                <button type="button" class="chart-nav-btn" onclick="holidayCalNav(1)">▶</button>
+              </div>
+              <div class="holiday-cal-grid" id="holiday-cal-grid"></div>
+              <button type="button" class="holiday-cal-done" onclick="toggleHolidayCal()">완료</button>
+            </div>
+            <textarea class="inp-s" id="inp-holidays" style="display:none" onchange="onAssumptionChange()"></textarea>
           </div>
         </div>
+      </div>
+
+      <div class="sim-section">
+        <div class="grid-title" style="margin-bottom:4px">월별 SMP <span class="form-hint">원/kWh</span></div>
+        <div class="sim-row" style="grid-template-columns:repeat(6,1fr);gap:6px">
+          <input class="inp-s smp-inp" data-m="1" type="number" step="0.01" placeholder="1월" onchange="updateSmp(1,this.value)">
+          <input class="inp-s smp-inp" data-m="2" type="number" step="0.01" placeholder="2월" onchange="updateSmp(2,this.value)">
+          <input class="inp-s smp-inp" data-m="3" type="number" step="0.01" placeholder="3월" onchange="updateSmp(3,this.value)">
+          <input class="inp-s smp-inp" data-m="4" type="number" step="0.01" placeholder="4월" onchange="updateSmp(4,this.value)">
+          <input class="inp-s smp-inp" data-m="5" type="number" step="0.01" placeholder="5월" onchange="updateSmp(5,this.value)">
+          <input class="inp-s smp-inp" data-m="6" type="number" step="0.01" placeholder="6월" onchange="updateSmp(6,this.value)">
+        </div>
+        <div class="sim-row" style="grid-template-columns:repeat(6,1fr);gap:6px;margin-top:6px">
+          <input class="inp-s smp-inp" data-m="7" type="number" step="0.01" placeholder="7월" onchange="updateSmp(7,this.value)">
+          <input class="inp-s smp-inp" data-m="8" type="number" step="0.01" placeholder="8월" onchange="updateSmp(8,this.value)">
+          <input class="inp-s smp-inp" data-m="9" type="number" step="0.01" placeholder="9월" onchange="updateSmp(9,this.value)">
+          <input class="inp-s smp-inp" data-m="10" type="number" step="0.01" placeholder="10월" onchange="updateSmp(10,this.value)">
+          <input class="inp-s smp-inp" data-m="11" type="number" step="0.01" placeholder="11월" onchange="updateSmp(11,this.value)">
+          <input class="inp-s smp-inp" data-m="12" type="number" step="0.01" placeholder="12월" onchange="updateSmp(12,this.value)">
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px">
+        <button type="button" class="gate-btn" style="width:auto;padding:0 20px;height:40px" onclick="saveAdminSettings()">저장</button>
+        <span id="admin-save-msg" style="font-size:11px;color:var(--tx4)">저장하면 이 브라우저에서 새로 분석 결과를 열 때마다 이 설정이 기본값으로 적용됩니다.</span>
       </div>
     </section>
 
@@ -577,18 +629,27 @@ function fmtM(n){
   return fmt(n)+'원';
 }
 /* 월별 SMP 조회
-   지금: UI 입력 카드 없이 아래 MONTHLY_SMP 상수를 코드에서 직접 수정해 반영
+   지금: ④ 설정 탭의 월별 입력값(MONTHLY_SMP, updateSmp()로 갱신)을 그대로 사용
    추후: data.go.kr API 연동되면 이 함수 내부만
          "그 달의 시간별 SMP를 전력수요예측량으로 가중평균한 값"을
          반환하도록 교체하면 됩니다. 호출부(renderFeeTable, runSim)는 수정 불필요. */
 var apiSmpCache=null; // API 연동 후 { 1: 123.4, 2: 118.2, ... } 형태로 채워질 캐시
-var MONTHLY_SMP={ // 원/kWh · 2025년 육지 실측 기준값 — 갱신 시 이 값을 직접 수정
+var MONTHLY_SMP={ // 원/kWh · 2025년 육지 실측 기준값(기본값) — ④ 설정 탭에서 조정 가능
   1:117.11, 2:116.39, 3:113.12, 4:124.63, 5:125.5, 6:118.02,
   7:120.39, 8:117.39, 9:112.9, 10:101.53, 11:94.8, 12:90.43
 };
 function getMonthSmp(month){
   if(apiSmpCache && apiSmpCache[month]!=null) return apiSmpCache[month];
   return MONTHLY_SMP[month]||0;
+}
+function updateSmp(month,val){
+  MONTHLY_SMP[month]=parseFloat(val)||0;
+  onAssumptionChange();
+}
+function renderSmpInputs(){
+  document.querySelectorAll('.smp-inp').forEach(function(el){
+    el.value=MONTHLY_SMP[parseInt(el.dataset.m,10)];
+  });
 }
 
 /* ── 샘플 데이터 ── */
@@ -821,6 +882,47 @@ function onAdminClick(){
   document.getElementById('fn-btn-admin').click();
 }
 if(localStorage.getItem('eppa_admin_ok')) unlockAdminTab();
+
+/* ── ④ 설정 탭 값 저장/복원 — 저장을 누르면 이 브라우저의 localStorage에
+   저장해두고, 다음에 분석 결과 페이지를 새로 열 때(= 새 업로드로 "새로
+   들어온" 경우 포함) init()에서 기본값 대신 이 값을 자동으로 적용한다. */
+var ADMIN_SETTINGS_KEY='eppa_admin_settings';
+function saveAdminSettings(){
+  var s={
+    climate:document.getElementById('inp-climate').value,
+    fuel:document.getElementById('inp-fuel').value,
+    feeTrade:document.getElementById('inp-fee-trade').value,
+    feeAdj:document.getElementById('inp-fee-adj').value,
+    loss:document.getElementById('sel-loss').value,
+    recw:document.getElementById('inp-recw').value,
+    sunday:document.getElementById('sel-sunday').value,
+    holidays:document.getElementById('inp-holidays').value,
+    smp:MONTHLY_SMP
+  };
+  localStorage.setItem(ADMIN_SETTINGS_KEY,JSON.stringify(s));
+  var msg=document.getElementById('admin-save-msg');
+  msg.textContent='저장되었습니다 — 이 브라우저에서는 앞으로 이 값이 기본값으로 적용됩니다.';
+  msg.style.color='var(--green)';
+  setTimeout(function(){
+    msg.textContent='저장하면 이 브라우저에서 새로 분석 결과를 열 때마다 이 설정이 기본값으로 적용됩니다.';
+    msg.style.color='var(--tx4)';
+  },2500);
+}
+function loadAdminSettings(){
+  var raw=localStorage.getItem(ADMIN_SETTINGS_KEY);
+  if(!raw) return;
+  var s;
+  try{ s=JSON.parse(raw); }catch(e){ return; }
+  if(s.climate!=null) document.getElementById('inp-climate').value=s.climate;
+  if(s.fuel!=null) document.getElementById('inp-fuel').value=s.fuel;
+  if(s.feeTrade!=null) document.getElementById('inp-fee-trade').value=s.feeTrade;
+  if(s.feeAdj!=null) document.getElementById('inp-fee-adj').value=s.feeAdj;
+  if(s.loss!=null) document.getElementById('sel-loss').value=s.loss;
+  if(s.recw!=null) document.getElementById('inp-recw').value=s.recw;
+  if(s.sunday!=null) document.getElementById('sel-sunday').value=s.sunday;
+  if(s.holidays) document.getElementById('inp-holidays').value=s.holidays;
+  if(s.smp) Object.keys(s.smp).forEach(function(k){ MONTHLY_SMP[k]=s.smp[k]; });
+}
 /* ══════════ 시간대(TOU)·휴일 판정 ══════════
    한전 2026.6.1 요금표 기준: 경부하 22~08시(전 계절), 중간/최대는 계절별.
    토요일: 최대부하 사용량 → 중간부하로 계량 / 공휴일(일요일 포함, 관공서 공휴일 규정): 전 시간 경부하.
@@ -840,6 +942,60 @@ function readHolidays(){
   HOL={};
   var t=(document.getElementById('inp-holidays')||{}).value||'';
   t.split(/[^0-9\-]+/).forEach(function(s){ if(/^\d{4}-\d{2}-\d{2}$/.test(s)) HOL[s]=true; });
+}
+
+/* ── 공휴일 달력 선택기(④ 설정 탭) — inp-holidays 텍스트영역(숨김)을 그대로
+   신뢰 소스로 쓰고, 달력에서 선택/해제할 때마다 그 값을 다시 만들어 넣는다 ── */
+var _holSet={};
+var _holCalDate=new Date();
+function initHolidaySet(){
+  _holSet={};
+  (document.getElementById('inp-holidays').value||'').split(/[^0-9\-]+/).forEach(function(s){
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) _holSet[s]=true;
+  });
+  renderHolidayChips();
+}
+function syncHolidaysFromSet(){
+  document.getElementById('inp-holidays').value=Object.keys(_holSet).sort().join(', ');
+  renderHolidayChips();
+  onAssumptionChange();
+}
+function renderHolidayChips(){
+  var arr=Object.keys(_holSet).sort();
+  document.getElementById('holiday-chips').innerHTML=arr.length?arr.map(function(d){
+    return '<span class="holiday-chip">'+d+'<button type="button" onclick="removeHoliday(\''+d+'\')">×</button></span>';
+  }).join(''):'<span style="color:var(--tx4);font-size:11px">선택된 공휴일 없음</span>';
+}
+function removeHoliday(d){
+  delete _holSet[d];
+  syncHolidaysFromSet();
+}
+function toggleHolidayCal(){
+  var cal=document.getElementById('holiday-cal');
+  var show=cal.style.display==='none';
+  cal.style.display=show?'block':'none';
+  if(show) renderHolidayCal();
+}
+function holidayCalNav(delta){
+  _holCalDate.setMonth(_holCalDate.getMonth()+delta);
+  renderHolidayCal();
+}
+function renderHolidayCal(){
+  var y=_holCalDate.getFullYear(),m=_holCalDate.getMonth();
+  document.getElementById('holiday-cal-label').textContent=y+'년 '+(m+1)+'월';
+  var startDow=new Date(y,m,1).getDay(),dim=new Date(y,m+1,0).getDate();
+  var html=['일','월','화','수','목','금','토'].map(function(w){return '<div class="holiday-cal-dow">'+w+'</div>';}).join('');
+  for(var i=0;i<startDow;i++) html+='<div></div>';
+  for(var d=1;d<=dim;d++){
+    var key=y+'-'+pad2(m+1)+'-'+pad2(d);
+    html+='<div class="holiday-cal-day'+(_holSet[key]?' sel':'')+'" onclick="toggleHolidayDate(\''+key+'\')">'+d+'</div>';
+  }
+  document.getElementById('holiday-cal-grid').innerHTML=html;
+}
+function toggleHolidayDate(key){
+  if(_holSet[key]) delete _holSet[key]; else _holSet[key]=true;
+  renderHolidayCal();
+  syncHolidaysFromSet();
 }
 /* 0=경부하, 1=중간부하, 2=최대부하 (평일 기준) */
 function touBase(hour,season){
@@ -1191,10 +1347,16 @@ function renderMetrics(){
 }
 /* ── 기능 1: 차트 모드 전환(연간 종합 ⇄ 월별 슬라이드) — 월별 모드는 선택한 달
    "안에서" 일자별 소비/발전 패턴을 같은 영역그래프 스타일로 별도 렌더링 */
-var ANNUAL_LEGEND_HTML=
-  '<div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>'
-  +'<div class="legend-item"><div class="legend-dot" style="background:rgba(93,168,122,.85)"></div>태양광 발전</div>'
-  +'<div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>';
+/* 발전량 표시 색상: 시간대별(실측 기반 태양곡선)이면 초록, 월간균등(가정 배분)이면
+   파란색 — 도입 방식 토글의 파란 강조색과 맞춰 "이건 실제 곡선이 아니라 균등
+   배분 가정"이라는 걸 그래프에서도 바로 알 수 있게 함 */
+function genRgb(){ return _introMode==='monthly'?'91,143,199':'93,168,122'; }
+function annualLegendHtml(){
+  var rgb=genRgb();
+  return '<div class="legend-item"><div class="legend-dot" style="background:rgba(160,160,160,.7)"></div>전력 소비</div>'
+    +'<div class="legend-item"><div class="legend-dot" style="background:rgba('+rgb+',.85)"></div>태양광 발전</div>'
+    +'<div class="legend-item"><div class="legend-dot" style="background:rgba(220,80,80,.6)"></div>초과발전 (잉여)</div>';
+}
 
 function renderChart(){
   if(_chartMode==='monthly') renderChartMonthly();
@@ -1207,7 +1369,7 @@ function setChartMode(mode){
   document.getElementById('btn-mode-monthly').classList.toggle('active',mode==='monthly');
   document.getElementById('chart-title-annual').style.display=mode==='annual'?'':'none';
   document.getElementById('chart-nav').style.display=mode==='monthly'?'flex':'none';
-  if(mode==='annual') document.getElementById('chart-legend').innerHTML=ANNUAL_LEGEND_HTML;
+  if(mode==='annual') document.getElementById('chart-legend').innerHTML=annualLegendHtml();
   if(mode==='monthly') _detailMonthIdx=Math.max(0,Math.min(_detailMonthIdx,effMonthly.length-1));
   renderChart();
 }
@@ -1253,23 +1415,25 @@ function renderChartAnnual(){
     });
   }
 
+  var genRgbA=genRgb();
   data.forEach(function(m,i){
     var x=px(i);
     labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+bucketLabel(m)+'</text>';
     dots+='<circle cx="'+x+'" cy="'+pyC(m).toFixed(1)+'" r="3" fill="rgba(160,160,160,.85)"/>';
-    dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="'+(m.excess?4:3)+'" fill="'+(m.excess?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="'+(m.excess?4:3)+'" fill="'+(m.excess?'rgba(220,80,80,.95)':'rgba('+genRgbA+',.9)')+'"/>';
   });
 
+  document.getElementById('chart-legend').innerHTML=annualLegendHtml();
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
     +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
-    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba('+genRgbA+',.40)"/><stop offset="100%" stop-color="rgba('+genRgbA+',.03)"/></linearGradient>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
     +exBars
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
-    +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
+    +'<path d="'+gLine+'" fill="none" stroke="rgba('+genRgbA+',.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
 }
 /* 월별 평균 일출·일몰(한국 중부 근사) → 시간대별 태양광 발전 비중(합계 1) 계산.
@@ -1324,9 +1488,10 @@ function renderChartMonthly(){
   var excess=m.dayCount>0?m.excess/m.dayCount:0;
   var genNote=_introMode==='monthly'?' <span style="color:var(--tx4);font-size:10px">(월간균등 배분)</span>':'';
   if(m.partial) genNote+=' <span style="color:var(--tx4);font-size:10px">(부분월 '+m.dayCount+'일)</span>';
+  var genRgbL=genRgb();
   document.getElementById('chart-legend').innerHTML=
     '<span style="color:var(--tx2)">월 사용량 <b style="color:var(--tx1)">'+fmt(m.kwh)+'kWh</b></span>'
-    +'<span style="color:var(--tx2)">월 발전량 <b style="color:var(--green)">'+fmt(m.gen)+'kWh</b></span>'+genNote
+    +'<span style="color:var(--tx2)">월 발전량 <b style="color:rgb('+genRgbL+')">'+fmt(m.gen)+'kWh</b></span>'+genNote
     +'<span style="color:var(--tx2)">자가소비율 <b style="color:var(--orange)">'+selfRate.toFixed(1)+'%</b></span>'
     +'<span style="color:var(--tx2)">초과발전(일평균) <b style="color:#dc5050">'+fmt(excess)+'kWh · '+excessHours+'시간대</b></span>';
 
@@ -1369,19 +1534,19 @@ function renderChartMonthly(){
     }
     var over=d.excess>0;
     dots+='<circle cx="'+x+'" cy="'+pyC(d).toFixed(1)+'" r="2.5" fill="rgba(160,160,160,.85)"/>';
-    dots+='<circle cx="'+x+'" cy="'+pyG(d).toFixed(1)+'" r="'+(over?3.5:2.5)+'" fill="'+(over?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(d).toFixed(1)+'" r="'+(over?3.5:2.5)+'" fill="'+(over?'rgba(220,80,80,.95)':'rgba('+genRgbL+',.9)')+'"/>';
   });
 
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
     +'<linearGradient id="gc2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
-    +'<linearGradient id="gg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
+    +'<linearGradient id="gg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba('+genRgbL+',.40)"/><stop offset="100%" stop-color="rgba('+genRgbL+',.03)"/></linearGradient>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc2)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg2)"/>'
     +exBars
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
-    +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
+    +'<path d="'+gLine+'" fill="none" stroke="rgba('+genRgbL+',.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
 }
 /* ── 기능 2: 월별 bar (그레이 모노톤 + 곡선 + 피크선) ── */
@@ -1870,6 +2035,9 @@ function runSim(){
 (function init(){
   document.getElementById('inp-holidays').value=DEFAULT_HOLIDAYS;
   document.getElementById('inp-hours').value=DEFAULT_HOURS;
+  loadAdminSettings(); /* ④ 설정 탭에서 저장해둔 값이 있으면 위 기본값을 덮어씀 */
+  initHolidaySet();
+  renderSmpInputs();
   if(!isSample){
     if(params.tariffPlan && KEPCO[params.tariffPlan]) document.getElementById('sel-tariff').value=params.tariffPlan;
     if(params.ppa) document.getElementById('inp-ppa').value=params.ppa;
