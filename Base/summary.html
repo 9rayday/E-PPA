@@ -674,7 +674,7 @@ function submitLead(){
   var _tkwh =effMonthly.reduce(function(s,m){return s+m.kwh;},0);
   var _tgen =effMonthly.reduce(function(s,m){return s+m.gen;},0);
   var _teff =effMonthly.reduce(function(s,m){return s+m.eff;},0);
-  var _exc  =effMonthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
+  var _exc  =effMonthly.reduce(function(s,m){return s+(m.excess||0);},0);
   var _re100v=_tkwh>0?(_teff/_tkwh*100).toFixed(1):0;
   var _cap  =parseFloat((document.getElementById('inp-cap')||{}).value)||params.cap||0;
   var _hours=parseFloat((document.getElementById('inp-hours')||{}).value)||0;
@@ -714,23 +714,25 @@ document.querySelectorAll('.fn-btn').forEach(function(btn){
   });
 });
 
-/* ── 가정값 변경 시 → 테이블 + 시뮬레이션 동시 갱신 ── */
+/* ── 가정값 변경 시 → 테이블 + 시뮬레이션 동시 갱신 ──
+   자가소비(eff)·초과발전(excess)은 항상 시간대별 순시 매칭(getHourlyMatch) 기준으로
+   다시 계산한다 — app.js가 저장해둔 월 단위 net 값(m.eff)은 쓰지 않는다. */
 function updateEffMonthly(){
   var c=parseFloat(document.getElementById('inp-cap').value)||0;
   var h=parseFloat(document.getElementById('inp-hours').value)||0;
+  var sc=1;
   if(c>0&&h>0){
     var newAnn=c*h*365; /* h/day × 365 → kWh/년 (신규 목표 발전량) */
-    var origGen=monthly.reduce(function(s,m){return s+m.gen;},0); /* 발전량 기준 스케일 — eff는 이미 사용량에 클리핑된 값이라 기준으로 쓰면 안 됨 */
-    var sc=origGen>0?newAnn/origGen:1;
-    effMonthly=monthly.map(function(m){
-      var g=Math.round(m.gen*sc);
-      var e=Math.min(g,m.kwh); /* 스케일된 발전량을 사용량으로 다시 클리핑 — eff가 kwh를 넘는 걸 방지 */
-      return {year:m.year,month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0,
-        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi,days:m.days||null,hourly:m.hourly||null}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
-    });
-  } else {
-    effMonthly=monthly;
+    var origGen=monthly.reduce(function(s,m){return s+m.gen;},0);
+    sc=origGen>0?newAnn/origGen:1;
   }
+  effMonthly=monthly.map(function(m){
+    var g=Math.round(m.gen*sc);
+    var hm=getHourlyMatch(m,g);
+    return {year:m.year,month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:hm.self,excess:hm.excess,
+      selfRate:m.kwh>0?Math.min(1,hm.self/m.kwh):0,
+      demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi,days:m.days||null,hourly:m.hourly||null};
+  });
 }
 
 function onAssumptionChange(){
@@ -806,8 +808,8 @@ function renderMetrics(){
   var totalGen =effMonthly.reduce(function(s,m){return s+m.gen;},0);
   var totalEff =effMonthly.reduce(function(s,m){return s+m.eff;},0);
   var re100    =totalKwh>0?(totalEff/totalKwh*100):0;
-  var excessKwh=effMonthly.reduce(function(s,m){return s+Math.max(0,m.gen-m.kwh);},0);
-  var excessN  =effMonthly.filter(function(m){return m.gen>m.kwh;}).length;
+  var excessKwh=effMonthly.reduce(function(s,m){return s+(m.excess||0);},0);
+  var excessN  =effMonthly.filter(function(m){return (m.excess||0)>0;}).length;
   var overRatio=totalGen>0?(excessKwh/totalGen*100):0;
 
   document.getElementById('metric-cards').innerHTML=[
@@ -932,9 +934,10 @@ var SAMPLE_LOAD_SHAPE=[0.28,0.26,0.25,0.25,0.27,0.35,0.55,0.85,1.15,1.25,1.20,1.
    - 발전량은 실측 시간대별 일사량이 없어, 그 달 평균 발전량을 일출~일몰 사인곡선으로 분배(근사치)
    - 샘플(데모) 모드는 결정적 2교대 부하 패턴으로 합성 — 매번 같은 그래프가 나와야 데모가 일관됨
    - 월별 청구서 등 시간대별 데이터가 없는 실제 업로드는 null → 플레이스홀더 표시 */
-function getMonthHourlyPattern(m){
+function getMonthHourlyPattern(m,genOverride){
   var dim=new Date(m.year,m.month,0).getDate();
-  var genPerDay=m.gen/dim;
+  var gen=genOverride!=null?genOverride:m.gen;
+  var genPerDay=gen/dim;
   var shape=getSolarHourlyShape(m.month);
   if(m.hourly && m.hourly.length && m.hourly.some(function(h){return h.kwh>0;})){
     return m.hourly.map(function(h){return{hour:h.hour,kwh:h.kwh,gen:genPerDay*shape[h.hour]};});
@@ -947,6 +950,24 @@ function getMonthHourlyPattern(m){
     });
   }
   return null;
+}
+
+/* 월 단위 자가소비/초과발전을 "시간대별 순시 매칭" 기준으로 계산.
+   시간대 패턴(getMonthHourlyPattern)이 있으면 24개 시간대 각각 min/max를 구해
+   그 달 일수만큼 곱해 월 합계로 환산 — 같은 달 안이라도 시점이 다르면 상쇄되지
+   않는다는 걸 반영(ESS 없이는 정오의 잉여가 저녁 부족분을 못 채움).
+   시간대 데이터가 없는 업로드(월별 청구서 등)는 기존 월 단위 net 계산으로 폴백. */
+function getHourlyMatch(m,genOverride){
+  var gen=genOverride!=null?genOverride:(m.gen||0);
+  var pattern=getMonthHourlyPattern(m,gen);
+  if(!pattern) return {self:Math.min(gen,m.kwh),excess:Math.max(0,gen-m.kwh),hourly:false};
+  var dim=new Date(m.year,m.month,0).getDate();
+  var self=0,excess=0;
+  pattern.forEach(function(d){
+    self+=Math.min(d.kwh,d.gen);
+    excess+=Math.max(0,d.gen-d.kwh);
+  });
+  return {self:Math.round(self*dim),excess:Math.round(excess*dim),hourly:true};
 }
 
 /* ── 기능 1: 차트 — 월별 슬라이드. 선택한 달의 "하루 평균" 시간대별(0~23시)
@@ -1408,13 +1429,15 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
   var kEnergy=0, rEnergy=0;
 
   effMonthly.forEach(function(m){
-    /* m.eff는 이미 min(gen,kwh)로 사용량에 클리핑된 값이라 초과발전 판정에 쓰면
-       genY-kwh가 절대 양수가 될 수 없음(REC 매입비용이 항상 0으로 계산되는 버그).
-       클리핑 전의 m.gen을 써야 초과발전이 제대로 잡힘. */
+    /* 자가소비·초과발전은 시간대별 순시 매칭(getHourlyMatch) 기준으로 계산한다.
+       월 합계만 비교하는 min(gen,kwh)/max(0,gen-kwh)는 "한 달 안에서는 발전과
+       소비가 시점 무관하게 상쇄된다"는 비현실적 가정이라, 정오에 남는 발전량이
+       같은 달 다른 시간대 부족분을 메우는 것으로 처리돼 초과발전이 과소평가됨. */
     var genY  =(m.gen||0)*sF;
-    var self  =Math.min(genY,m.kwh);        // 실제 상계된 자가소비분 (사용량 초과 불가)
-    var remain=Math.max(0,m.kwh-genY);      // 한전에서 계속 사야 하는 잔여분
-    var excess=Math.max(0,genY-m.kwh);      // 사용량 초과 발전분 → REC 매입 대상
+    var hm    =getHourlyMatch(m,genY);
+    var self  =hm.self;                     // 실제 상계된 자가소비분(시간대 매칭 기준)
+    var remain=Math.max(0,m.kwh-self);      // 한전에서 계속 사야 하는 잔여분
+    var excess=hm.excess;                   // 시간대별 순시 초과발전분 → REC 매입 대상
     totalKwh+=m.kwh; totalSelfConsume+=self; remainKwh+=remain; totalExcess+=excess;
 
     var rate=energyRateActual(inp.tariff,m.month,m)*kF;
@@ -1451,7 +1474,7 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
   var genAppl={};
   effMonthly.forEach(function(m){
     var genY=(m.gen||0)*sF;
-    genAppl[m.month]=genY>0?(Math.min(genY,m.kwh)/genY)*inp.cap:0;
+    genAppl[m.month]=genY>0?(getHourlyMatch(m,genY).self/genY)*inp.cap:0;
   });
   var monthsArr=effMonthly.map(function(m){return m.month;});
   var demPeak=Math.max.apply(null,monthsArr.map(function(mo){return genAppl[mo];}));
