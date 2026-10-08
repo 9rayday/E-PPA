@@ -726,7 +726,7 @@ function updateEffMonthly(){
       var g=Math.round(m.gen*sc);
       var e=Math.min(g,m.kwh); /* 스케일된 발전량을 사용량으로 다시 클리핑 — eff가 kwh를 넘는 걸 방지 */
       return {year:m.year,month:m.month,kwh:m.kwh,amount:m.amount,gen:g,eff:e,selfRate:m.kwh>0?Math.min(1,e/m.kwh):0,
-        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi,days:m.days||null}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
+        demandKw:m.demandKw,lo:m.lo,mid:m.mid,hi:m.hi,days:m.days||null,hourly:m.hourly||null}; /* 사용량 쪽 필드는 발전량 스케일과 무관하므로 그대로 통과 */
     });
   } else {
     effMonthly=monthly;
@@ -858,8 +858,9 @@ function stepDetailMonth(delta){
 function renderChartAnnual(){
   var data=effMonthly,n=data.length;
   if(!n) return;
-  var maxV=Math.max.apply(null,data.map(function(m){return Math.max(m.kwh,m.gen);}));
-  if(!maxV) return;
+  var rawMax=Math.max.apply(null,data.map(function(m){return Math.max(m.kwh,m.gen);}));
+  if(!rawMax) return;
+  var maxV=rawMax*1.15; /* 최고점이 그래프 꼭대기에 딱 붙어 잘려 보이지 않도록 여유분 확보 */
   var el=document.getElementById('chart-area');
   var W=el.clientWidth||800,H=el.clientHeight||260;
   if(W<100){W=800;H=260;}
@@ -903,67 +904,92 @@ function renderChartAnnual(){
     +dots+labels+'</svg>';
 }
 
-/* 선택한 달의 "안에서" 일자별 {day, kwh, gen} 패턴을 돌려줌.
-   - AMI 실측 데이터(m.days)가 있으면 실제 일별 사용량 + 발전량은 그 달 평균을 균등 배분(일별 일사량 실측치가 없어 평탄선이 유일하게 솔직한 근사)
-   - 샘플(데모) 모드는 결정적(랜덤X) 요일 가중 패턴으로 합성 — 매번 같은 그래프가 나와야 데모가 일관됨
-   - 월별 청구서 등 일별 데이터가 없는 실제 업로드는 null → 플레이스홀더 표시 */
-function getMonthDailyPattern(m,dim){
+/* 월별 평균 일출·일몰(한국 중부 근사) → 시간대별 태양광 발전 비중(합계 1) 계산.
+   실측 시간대별 일사량이 없으므로, 그 달의 "하루 평균 발전량"을 일출~일몰 사이에
+   정오를 중심으로 한 사인 곡선으로 분배 — 겨울엔 좁고 여름엔 넓은 발전 시간대를 반영 */
+var SUN_HOURS={1:[7.5,17.5],2:[7.0,18.0],3:[6.5,18.5],4:[5.8,19.0],5:[5.3,19.5],6:[5.2,19.8],
+  7:[5.3,19.7],8:[5.6,19.3],9:[6.0,18.7],10:[6.5,17.9],11:[7.0,17.3],12:[7.4,17.2]};
+function getSolarHourlyShape(month){
+  var sun=SUN_HOURS[month]||[6,18],sr=sun[0],ss=sun[1];
+  var w=new Array(24).fill(0),sum=0;
+  for(var h=0;h<24;h++){
+    var mid=h+0.5;
+    if(mid>sr && mid<ss){
+      w[h]=Math.sin(Math.PI*(mid-sr)/(ss-sr));
+      sum+=w[h];
+    }
+  }
+  if(sum>0) for(var h2=0;h2<24;h2++) w[h2]/=sum;
+  return w;
+}
+
+/* 전형적인 공장/사업장 2교대 부하 패턴(결정적, 랜덤X) — 샘플 모드에서만 사용 */
+var SAMPLE_LOAD_SHAPE=[0.28,0.26,0.25,0.25,0.27,0.35,0.55,0.85,1.15,1.25,1.20,1.10,
+  1.00,1.15,1.22,1.18,1.10,0.95,0.70,0.50,0.40,0.35,0.32,0.30];
+
+/* 선택한 달의 "하루 평균" 시간대별(0~23시) {hour, kwh, gen} 패턴을 돌려줌.
+   - AMI 실측 데이터(m.hourly)가 있으면 그 달 모든 날짜를 시간대별로 평균한 실측 소비 패턴 사용
+   - 발전량은 실측 시간대별 일사량이 없어, 그 달 평균 발전량을 일출~일몰 사인곡선으로 분배(근사치)
+   - 샘플(데모) 모드는 결정적 2교대 부하 패턴으로 합성 — 매번 같은 그래프가 나와야 데모가 일관됨
+   - 월별 청구서 등 시간대별 데이터가 없는 실제 업로드는 null → 플레이스홀더 표시 */
+function getMonthHourlyPattern(m){
+  var dim=new Date(m.year,m.month,0).getDate();
   var genPerDay=m.gen/dim;
-  if(m.days && m.days.length){
-    var byDay={};
-    m.days.forEach(function(d){byDay[d.day]=d.kwh;});
-    var out=[];
-    for(var d2=1;d2<=dim;d2++) out.push({day:d2,kwh:byDay[d2]||0,gen:genPerDay});
-    return out;
+  var shape=getSolarHourlyShape(m.month);
+  if(m.hourly && m.hourly.length && m.hourly.some(function(h){return h.kwh>0;})){
+    return m.hourly.map(function(h){return{hour:h.hour,kwh:h.kwh,gen:genPerDay*shape[h.hour]};});
   }
   if(isSample){
-    var dowF=[0.72,1.05,1.08,1.10,1.08,1.00,0.74];
-    var avg=m.kwh/dim,out2=[];
-    for(var d3=1;d3<=dim;d3++){
-      var dow=new Date(m.year,m.month-1,d3).getDay();
-      /* Math.random() 대신 날짜 기반 결정적 흔들림 — 리렌더해도 같은 모양 유지 */
-      var wig=0.92+0.16*(Math.sin(d3*12.9898)*0.5+0.5);
-      out2.push({day:d3,kwh:Math.round(avg*dowF[dow]*wig),gen:genPerDay});
-    }
-    return out2;
+    var sumShape=SAMPLE_LOAD_SHAPE.reduce(function(a,b){return a+b;},0);
+    var avgDay=m.kwh/dim;
+    return SAMPLE_LOAD_SHAPE.map(function(w,h){
+      return{hour:h,kwh:Math.round(avgDay*w/sumShape),gen:genPerDay*shape[h]};
+    });
   }
   return null;
 }
 
-/* ── 기능 1: 차트 — 월별 슬라이드. 선택한 달 "안에서" 일자별 소비/발전 패턴을
-   종합 그래프와 같은 영역그래프 스타일로 그려, 초과발전이 언제 발생하는지 보여줌 ── */
+/* ── 기능 1: 차트 — 월별 슬라이드. 선택한 달의 "하루 평균" 시간대별(0~23시)
+   소비/발전 패턴을 종합 그래프와 같은 영역그래프 스타일로 그려, 하루 중 언제
+   초과발전이 발생하는지(보통 오후 시간대) 보여줌 ── */
 function renderChartMonthly(){
   var n=effMonthly.length;
   if(!n) return;
   _detailMonthIdx=Math.max(0,Math.min(_detailMonthIdx,n-1));
   var m=effMonthly[_detailMonthIdx];
-  var dim=new Date(m.year,m.month,0).getDate();
 
   document.getElementById('chart-nav-label').textContent=m.year+'년 '+m.month+'월';
   document.getElementById('chart-nav-prev').disabled=_detailMonthIdx<=0;
   document.getElementById('chart-nav-next').disabled=_detailMonthIdx>=n-1;
 
   var el=document.getElementById('chart-area');
-  var data=getMonthDailyPattern(m,dim);
+  var data=getMonthHourlyPattern(m);
 
   if(!data){
-    el.innerHTML='<div class="ami-placeholder">AMI(15분·1시간 단위) 데이터가 있어야<br>월별 일간 패턴을 볼 수 있습니다</div>';
+    el.innerHTML='<div class="ami-placeholder">AMI(15분·1시간 단위) 데이터가 있어야<br>월별 시간대 패턴을 볼 수 있습니다</div>';
     document.getElementById('chart-legend').innerHTML='';
     return;
   }
 
-  var excess=Math.max(0,m.gen-m.kwh);
   var selfRate=m.kwh>0?Math.min(100,m.eff/m.kwh*100):0;
-  var excessDays=data.filter(function(d){return d.gen>d.kwh;}).length;
+  /* 초과발전량·초과시간대수를 같은 패턴 데이터에서 함께 계산 — 이전엔 시간대수는
+     패턴에서, 초과발전량(kWh)은 월 합계(gen-kwh)에서 따로 계산해 서로 달라
+     "초과 시간대는 찍히는데 초과발전량은 0"처럼 보이는 불일치가 있었음 */
+  var excess=0,excessHours=0;
+  data.forEach(function(d){
+    var over=d.gen-d.kwh;
+    if(over>0){ excess+=over; excessHours++; }
+  });
   document.getElementById('chart-legend').innerHTML=
     '<span style="color:var(--tx2)">월 사용량 <b style="color:var(--tx1)">'+fmt(m.kwh)+'kWh</b></span>'
     +'<span style="color:var(--tx2)">월 발전량 <b style="color:var(--green)">'+fmt(m.gen)+'kWh</b></span>'
     +'<span style="color:var(--tx2)">자가소비율 <b style="color:var(--orange)">'+selfRate.toFixed(1)+'%</b></span>'
-    +'<span style="color:var(--tx2)">초과발전 <b style="color:#dc5050">'+fmt(excess)+'kWh · '+excessDays+'일</b></span>';
+    +'<span style="color:var(--tx2)">초과발전(일평균) <b style="color:#dc5050">'+fmt(excess)+'kWh · '+excessHours+'시간대</b></span>';
 
   var n2=data.length;
-  var maxV=Math.max.apply(null,data.map(function(d){return Math.max(d.kwh,d.gen);}));
-  if(!maxV){ el.innerHTML=''; return; }
+  var rawMax=Math.max.apply(null,data.map(function(d){return Math.max(d.kwh,d.gen);}));
+  if(!rawMax){ el.innerHTML=''; return; }
+  var maxV=rawMax*1.15; /* 최고점이 상단에 딱 붙어 잘려 보이지 않도록 여유분 확보 */
   var W=el.clientWidth||800,H=el.clientHeight||260;
   if(W<100){W=800;H=260;}
   var pL=14,pR=14,pT=16,pB=28,iW=W-pL-pR,iH=H-pT-pB,baseY=pT+iH;
@@ -981,12 +1007,11 @@ function renderChartMonthly(){
   var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smoothLine(revPts).replace(/^M/,'L')+' Z';
   var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
 
-  /* 날이 많아 모든 날짜를 다 못 그리므로 대략 10개 안팎만 라벨 표시 */
-  var labelStep=Math.max(1,Math.round(n2/10));
+  /* 24개 시간대를 모두 표시하면 겹치므로 3시간 간격으로만 라벨 표시(1~24시 표기) */
   data.forEach(function(d,i){
     var x=px(i);
-    if(i%labelStep===0 || i===n2-1){
-      labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+d.day+'일</text>';
+    if(i%3===0 || i===n2-1){
+      labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+(d.hour+1)+'시</text>';
     }
     var over=d.gen>d.kwh;
     dots+='<circle cx="'+x+'" cy="'+pyC(d).toFixed(1)+'" r="2.5" fill="rgba(160,160,160,.85)"/>';

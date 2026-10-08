@@ -268,22 +268,29 @@ function parseAMI(rows) {
     if (wattUnit) { dayKwh /= 1000; dayMaxInterval /= 1000; }
 
     var key = d.year + '-' + d.month;
-    if (!monthly[key]) monthly[key] = { year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0, days: [] };
+    if (!monthly[key]) monthly[key] = {
+      year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0,
+      days: [], hourKwh: new Array(24).fill(0), dayCount: 0
+    };
     monthly[key].kwh += dayKwh;
     monthly[key].days.push({ day: d.day, kwh: Math.round(dayKwh) });
+    monthly[key].dayCount++;
     /* 요금적용전력(순시 최대수요, kW) = 구간 최대 에너지(kWh) × intervalToKw */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
 
-    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 — intervalVals[ti]는 항상 정확히 ti번째 구간 */
+    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 + 시간대별(0~23시) 평균 패턴용 합산
+       — intervalVals[ti]는 항상 정확히 ti번째 구간 */
     var dow    = new Date(d.year, d.month - 1, d.day).getDay(); /* 0=일 ~ 6=토 */
     var season = getSeason(d.month);
     for (var ti = 0; ti < intervalVals.length; ti++) {
       var val = intervalVals[ti];
       if (val === undefined || val === null) continue;
-      var hour   = Math.floor(ti * stepMin / 60);
+      var hour   = Math.min(23, Math.floor(ti * stepMin / 60));
       var bucket = getTouBucket(hour, season);
       if (dow === 6 && bucket === 'hi') bucket = 'mid'; /* 토요일: 최대부하→중간부하 */
-      monthly[key][bucket] += wattUnit ? val / 1000 : val;
+      var kwhVal = wattUnit ? val / 1000 : val;
+      monthly[key][bucket] += kwhVal;
+      monthly[key].hourKwh[hour] += kwhVal; /* 월 내 모든 날짜의 같은 시간대를 합산 → 평균 내면 "하루 평균 시간대별 패턴" */
     }
   });
 
@@ -294,7 +301,10 @@ function parseAMI(rows) {
         year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount),
         demandKw: Math.round(m.maxInterval * intervalToKw),
         lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi),
-        days: m.days.sort(function (a, b) { return a.day - b.day; })
+        days: m.days.sort(function (a, b) { return a.day - b.day; }),
+        hourly: m.hourKwh.map(function (sum, h) {
+          return { hour: h, kwh: m.dayCount > 0 ? Math.round(sum / m.dayCount) : 0 };
+        })
       };
     });
 }
@@ -415,7 +425,8 @@ function runAnalysis() {
       selfRate: selfRate,
       demandKw: m.demandKw,
       lo: m.lo, mid: m.mid, hi: m.hi,
-      days: m.days || null
+      days: m.days || null,
+      hourly: m.hourly || null
     };
   });
 
