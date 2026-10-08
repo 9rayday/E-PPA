@@ -53,7 +53,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .narrative-box .warn{color:var(--orange)}
 .cap-suggest{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:11.5px;color:var(--tx3);background:rgba(218,119,86,.06);border:1px solid rgba(218,119,86,.25);border-radius:var(--rs);padding:8px 12px;flex-shrink:0}
 .cap-suggest b{color:var(--tx1)}
-.cap-suggest-btn{margin-left:auto;padding:4px 10px;font-size:11px;border:1px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--rs);cursor:pointer;font-family:inherit}
+.cap-suggest-btn{margin-left:8px;padding:4px 10px;font-size:11px;border:1px solid var(--orange);background:transparent;color:var(--orange);border-radius:var(--rs);cursor:pointer;font-family:inherit}
 .cap-suggest-btn:hover{background:rgba(218,119,86,.12)}
 .chart-wrap{flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px 14px;display:flex;flex-direction:column;min-height:200px}
 .chart-title{font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;flex-shrink:0}
@@ -193,7 +193,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
   .sim-grid{grid-template-columns:1fr}
   .sim-grid .span2,.sim-grid .span3{grid-column:auto}
 }
-.mode-note{font-size:11px;color:var(--tx3);padding:2px 4px 10px;line-height:1.6}
 .cap-suggest{display:block;line-height:1.9}
 </style>
 </head>
@@ -271,7 +270,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           </div>
         </div>
       </div>
-      <div class="mode-note" id="mode-note"></div>
       <div class="cap-suggest" id="cap-suggest" style="display:none"></div>
       <div class="metrics" id="metric-cards"></div>
       <div class="narrative-box" id="narrative-summary"></div>
@@ -544,9 +542,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         </div>
       </div>
 
-      <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;justify-content:flex-end;gap:10px">
+        <span id="admin-save-msg" style="font-size:11px;color:var(--green)"></span>
         <button type="button" class="gate-btn" style="width:auto;padding:0 20px;height:40px" onclick="saveAdminSettings()">저장</button>
-        <span id="admin-save-msg" style="font-size:11px;color:var(--tx4)">저장하면 이 브라우저에서 새로 분석 결과를 열 때마다 이 설정이 기본값으로 적용됩니다.</span>
       </div>
     </section>
 
@@ -883,12 +881,18 @@ function onAdminClick(){
 }
 if(localStorage.getItem('eppa_admin_ok')) unlockAdminTab();
 
-/* ── ④ 설정 탭 값 저장/복원 — 저장을 누르면 이 브라우저의 localStorage에
-   저장해두고, 다음에 분석 결과 페이지를 새로 열 때(= 새 업로드로 "새로
-   들어온" 경우 포함) init()에서 기본값 대신 이 값을 자동으로 적용한다. */
+/* ── ④ 설정 탭 값 저장/복원 ──
+   localStorage는 "이 브라우저에서 즉시 반영 + 서버 응답 오기 전 임시값"
+   용도로만 쓰고, 진짜 공유 저장소는 Apps Script(SETTINGS_API_URL)다.
+   저장을 누르면 ①localStorage ②서버(PropertiesService) 둘 다에 쓰고,
+   모든 방문자는 init()에서 서버 값을 읽어와 적용한다 — 배포 전까지는
+   SETTINGS_API_URL이 비어 있어 이 브라우저에만 저장되는 예전 동작과 같다.
+   배포 방법은 Base/gas/SettingsApi.gs 상단 주석 참고. */
 var ADMIN_SETTINGS_KEY='eppa_admin_settings';
-function saveAdminSettings(){
-  var s={
+var SETTINGS_API_URL=''; /* 예: 'https://script.google.com/macros/s/AKfycb.../exec' — Base/gas/SettingsApi.gs 배포 후 여기에 붙여넣기 */
+
+function collectSettingsObj(){
+  return {
     climate:document.getElementById('inp-climate').value,
     fuel:document.getElementById('inp-fuel').value,
     feeTrade:document.getElementById('inp-fee-trade').value,
@@ -899,20 +903,9 @@ function saveAdminSettings(){
     holidays:document.getElementById('inp-holidays').value,
     smp:MONTHLY_SMP
   };
-  localStorage.setItem(ADMIN_SETTINGS_KEY,JSON.stringify(s));
-  var msg=document.getElementById('admin-save-msg');
-  msg.textContent='저장되었습니다 — 이 브라우저에서는 앞으로 이 값이 기본값으로 적용됩니다.';
-  msg.style.color='var(--green)';
-  setTimeout(function(){
-    msg.textContent='저장하면 이 브라우저에서 새로 분석 결과를 열 때마다 이 설정이 기본값으로 적용됩니다.';
-    msg.style.color='var(--tx4)';
-  },2500);
 }
-function loadAdminSettings(){
-  var raw=localStorage.getItem(ADMIN_SETTINGS_KEY);
-  if(!raw) return;
-  var s;
-  try{ s=JSON.parse(raw); }catch(e){ return; }
+function applySettingsObj(s){
+  if(!s) return;
   if(s.climate!=null) document.getElementById('inp-climate').value=s.climate;
   if(s.fuel!=null) document.getElementById('inp-fuel').value=s.fuel;
   if(s.feeTrade!=null) document.getElementById('inp-fee-trade').value=s.feeTrade;
@@ -922,6 +915,40 @@ function loadAdminSettings(){
   if(s.sunday!=null) document.getElementById('sel-sunday').value=s.sunday;
   if(s.holidays) document.getElementById('inp-holidays').value=s.holidays;
   if(s.smp) Object.keys(s.smp).forEach(function(k){ MONTHLY_SMP[k]=s.smp[k]; });
+}
+function loadAdminSettings(){
+  var raw=localStorage.getItem(ADMIN_SETTINGS_KEY);
+  if(!raw) return;
+  try{ applySettingsObj(JSON.parse(raw)); }catch(e){}
+}
+/* 서버(PropertiesService)에서 설정을 읽어온다 — GAS는 fetch()에 CORS 응답을
+   안 주므로 PV_Set의 로그인 콜백과 같은 JSONP(<script src=...&callback=...>)
+   방식을 씀. SETTINGS_API_URL 미설정 시 그냥 조용히 넘어감(로컬 저장값만 사용). */
+function fetchSharedSettings(cb){
+  if(!SETTINGS_API_URL){ cb(null); return; }
+  var cbName='_eppaSetCb'+Date.now();
+  var script=document.createElement('script');
+  window[cbName]=function(data){
+    delete window[cbName];
+    document.head.removeChild(script);
+    cb(data&&Object.keys(data).length?data:null);
+  };
+  script.onerror=function(){ delete window[cbName]; try{document.head.removeChild(script);}catch(e){} cb(null); };
+  script.src=SETTINGS_API_URL+'?action=load&callback='+cbName;
+  document.head.appendChild(script);
+}
+function pushSharedSettings(s){
+  if(!SETTINGS_API_URL) return;
+  var qs='?action=save&pw='+ADMIN_PW_HASH+'&data='+encodeURIComponent(JSON.stringify(s));
+  fetch(SETTINGS_API_URL+qs,{mode:'no-cors'}).catch(function(){});
+}
+function saveAdminSettings(){
+  var s=collectSettingsObj();
+  localStorage.setItem(ADMIN_SETTINGS_KEY,JSON.stringify(s));
+  pushSharedSettings(s);
+  var msg=document.getElementById('admin-save-msg');
+  msg.textContent=SETTINGS_API_URL?'저장되었습니다 (모든 사용자에게 적용)':'저장되었습니다 (이 브라우저에만 적용 — 공유 저장소 미설정)';
+  setTimeout(function(){ msg.textContent=''; },3000);
 }
 /* ══════════ 시간대(TOU)·휴일 판정 ══════════
    한전 2026.6.1 요금표 기준: 경부하 22~08시(전 계절), 중간/최대는 계절별.
@@ -1138,11 +1165,6 @@ function updateModeUI(){
   ['realtime','monthly'].forEach(function(k){
     document.getElementById('btn-intro-'+k).classList.toggle('active',_introMode===k);
   });
-  var notes={
-    realtime:'시간대별 정산 — 매 시간 발전량과 소비량을 비교해 상계합니다. 발전은 일출~일몰 사인곡선(월별 일출·일몰)으로 배분.',
-    monthly:'월간 균등 정산 — 월 발전량 ÷ 해당 월 전체 시간수 = 1시간 균등 발전량을 모든 시간(야간 포함)에 동일하게 배분합니다.'
-  };
-  document.getElementById('mode-note').innerHTML=notes[_introMode];
 }
 function setIntroMode(mode){
   _introMode=mode;
@@ -2073,6 +2095,22 @@ function runSim(){
     if(activeFn==='fn1') renderChart();
     else if(activeFn==='fn2') renderFn2Charts();
     else if(activeFn==='fn3') runSim();
+  });
+
+  /* 서버에 저장된 공유 설정이 있으면(관리자가 ④ 설정에서 저장한 값) 받아와
+     로컬 기본값을 덮어쓰고 전부 다시 그림 — 모든 방문자가 동일하게 적용받음 */
+  fetchSharedSettings(function(shared){
+    if(!shared) return;
+    applySettingsObj(shared);
+    localStorage.setItem(ADMIN_SETTINGS_KEY,JSON.stringify(shared));
+    initHolidaySet();
+    renderSmpInputs();
+    updateEffMonthly();
+    renderMetrics();
+    renderNarrative();
+    renderFn2Charts();
+    renderChart();
+    if(document.getElementById('fn3').style.display!=='none'){ renderPpaStructure(); renderFeeTable(); runSim(); }
   });
 })();
 </script>
