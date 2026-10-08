@@ -10,7 +10,7 @@
   --bg:#1a1a1a;--bg2:#212121;--bg3:#2a2a2a;--bg4:#333;
   --border:#3d3d3d;--border2:#4a4a4a;
   --tx1:#ececec;--tx2:#b4b4b4;--tx3:#8a8a8a;--tx4:#5a5a5a;
-  --orange:#da7756;--orange-lt:#e8926e;--green:#5da87a;--blue:#5b8fc7;
+  --orange:#da7756;--orange-lt:#e8926e;--green:#5da87a;
   --r:10px;--rs:6px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -77,7 +77,7 @@ html,body{height:100%;font-family:'Noto Sans KR',sans-serif;background:var(--bg)
 .assumption-field{display:flex;flex-direction:column;gap:3px;padding:10px 16px;border-right:1px solid var(--border);flex:1}
 .intro-mode-toggle{display:flex;gap:3px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--rs);padding:2px}
 .intro-mode-btn{flex:1;padding:5px 8px;border:none;background:transparent;color:var(--tx4);font-size:11px;font-weight:600;border-radius:4px;cursor:pointer;font-family:inherit;transition:all .15s;white-space:nowrap}
-.intro-mode-btn.active{background:var(--blue);color:#fff}
+.intro-mode-btn.active{background:#6b6b6b;color:#fff}
 .assumption-field:last-child{border-right:none}
 .assumption-field .field-label{font-size:10px;color:var(--tx4);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
 .assumption-field .inp-wrap{display:flex;align-items:center;gap:6px}
@@ -1189,25 +1189,30 @@ function renderNarrative(){
   }
   var excA=excessCauseAnalysis();
   if(excA.total>0){
-    html+='<br>초과발전량이 발생한 이유는 <b>'+excA.dowReason+'</b>, <b>'+excA.seasReason+'</b>입니다.';
+    html+='<br>초과발전량이 발생한 이유는 <b>'+excA.dowReason+'</b>, <b>'+excA.seasReason+'</b>'
+      +(excA.hourReason?', <b>'+excA.hourReason+'</b>':'')+'입니다.'+excA.hourNote;
   }
   if(DAYS_SYNTH&&!isSample) html+='<br><span style="color:var(--orange)">※ 월별 청구서만 업로드되어 시간대별 부하 형태를 일반 2교대 패턴으로 가정했습니다. 정확한 분석은 AMI(시간·15분 단위) 데이터가 필요합니다.</span>';
   if(isSample) html+='<br><span style="color:var(--tx4)">※ 샘플 데이터입니다.</span>';
   el.innerHTML=html;
 }
 
-/* 초과발전이 어떤 요일·계절에 집중되는지 분석 — 전력개요 서술문("초과발전량이
-   발생한 이유는 **X**, **Y**입니다")용. 요일은 주말(토·일) 합산이 전체 초과의
-   과반이면 "주말(토·일)"로 묶어 말하고, 아니면 가장 큰 단일 요일을 지목한다. */
+/* 초과발전이 어떤 요일·계절·시간대에 집중되는지 분석 — 전력개요 서술문("초과발전량이
+   발생한 이유는 **X**, **Y**, **Z**입니다")용. 요일은 주말(토·일) 합산이 전체 초과의
+   과반이면 "주말(토·일)"로 묶어 말하고, 아니면 가장 큰 단일 요일을 지목한다.
+   시간대는 초과가 실제로 찍히는 시(0~23시) 중 가장 이른 시~가장 늦은 시로 범위를
+   말하되, 거의 하루 종일(18시간 이상) 찍히면 "하루 대부분의 시간대"로 뭉뚱그리고
+   — 이건 월간균등 모드의 특성(심야에도 발전량을 균등 배분)으로 생기는 경우가
+   많아 그 사실을 hourNote로 따로 덧붙인다. */
 function excessCauseAnalysis(){
   var mode=_introMode,annual0=capNow()*getHours()*365;
-  var dowEx=new Array(7).fill(0),seasEx={summer:0,spring_fall:0,winter:0},total=0;
+  var dowEx=new Array(7).fill(0),seasEx={summer:0,spring_fall:0,winter:0},hourEx=new Array(24).fill(0),total=0;
   DAYS.forEach(function(d){
     var gday=annual0*DIST[d.m-1]/d.dim,shape=mode==='realtime'?solarShape(d.m):null;
     var s=getSeason(d.m);
     for(var h=0;h<24;h++){
       var L=d.h[h],g=shape?gday*shape[h]:gday/24,ex=g>L?g-L:0;
-      dowEx[d.w]+=ex; seasEx[s]+=ex; total+=ex;
+      dowEx[d.w]+=ex; seasEx[s]+=ex; hourEx[h]+=ex; total+=ex;
     }
   });
   var DOW_NAMES=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
@@ -1222,7 +1227,20 @@ function excessCauseAnalysis(){
   var SEAS_NAMES={summer:'여름철',spring_fall:'봄·가을철',winter:'겨울철'};
   var seasKeys=['summer','spring_fall','winter'],maxSeas=seasKeys[0];
   seasKeys.forEach(function(s){ if(seasEx[s]>seasEx[maxSeas]) maxSeas=s; });
-  return {dowEx:dowEx,seasEx:seasEx,total:total,dowReason:dowReason,seasReason:SEAS_NAMES[maxSeas]};
+
+  var hourList=[];
+  for(var h2=0;h2<24;h2++) if(hourEx[h2]>0) hourList.push(h2);
+  var hourReason='',hourNote='';
+  if(hourList.length>0){
+    if(hourList.length>=18){
+      hourReason='하루 대부분의 시간대';
+      if(mode==='monthly') hourNote=' <span style="color:var(--tx4);font-size:11px">(월간균등 배분 방식은 심야 시간에도 발전량을 똑같이 배분하기 때문에, 부하가 낮은 날은 그 시간대도 초과로 집계됩니다. 실제 태양광은 야간엔 발전하지 않으므로 시간대별 정산으로 바꾸면 더 정확한 패턴을 볼 수 있습니다.)</span>';
+    } else {
+      hourReason=(hourList[0]+1)+'~'+(hourList[hourList.length-1]+1)+'시';
+    }
+  }
+  return {dowEx:dowEx,seasEx:seasEx,hourEx:hourEx,total:total,dowReason:dowReason,seasReason:SEAS_NAMES[maxSeas],
+    hourReason:hourReason,hourNote:hourNote};
 }
 
 /* 요금적용전력 결정(한전 전기공급약관 시행세칙) — 직전 12개월 중 성수기(7·8·9·12·1·2월)와
