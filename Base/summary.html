@@ -889,7 +889,10 @@ if(localStorage.getItem('eppa_admin_ok')) unlockAdminTab();
    SETTINGS_API_URL이 비어 있어 이 브라우저에만 저장되는 예전 동작과 같다.
    배포 방법은 Base/gas/SettingsApi.gs 상단 주석 참고. */
 var ADMIN_SETTINGS_KEY='eppa_admin_settings';
-var SETTINGS_API_URL=''; /* 예: 'https://script.google.com/macros/s/AKfycb.../exec' — Base/gas/SettingsApi.gs 배포 후 여기에 붙여넣기 */
+/* 기존 리드게이트(GATE_URL)와 같은 Apps Script 프로젝트에 설정 공유 기능을
+   합쳐뒀으므로(Base/gas/Code.gs) URL도 동일 — 그 프로젝트를 "새 버전"으로
+   재배포하면(URL 불변) 바로 적용된다. */
+var SETTINGS_API_URL=GATE_URL;
 
 function collectSettingsObj(){
   return {
