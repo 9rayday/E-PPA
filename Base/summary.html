@@ -608,6 +608,10 @@ var isSample=!res||!res.monthly||!res.monthly.length;
 if(isSample) res=SAMPLE;
 
 var monthly=res.monthly;
+/* 1년(12개월) 넘는 업로드(롤링 12개월 파일의 양끝 부분월 포함, 혹은 다년치 업로드)는
+   가장 최근 12개월 버킷만 사용 — 분석을 항상 "최근 1년" 단위로 고정한다.
+   monthly는 app.js에서 이미 연-월 오름차순 정렬되어 있으므로 뒤에서 12개만 자르면 됨. */
+if(monthly.length>12) monthly=monthly.slice(monthly.length-12);
 var effMonthly=monthly;
 var params =res.params;
 var daily  =null;
@@ -881,13 +885,20 @@ function getMonthHourlyPattern(m,genOverride){
   var ds=DAYS.filter(function(d){return d.bi===m.bi;});
   if(!ds.length) return null;
   var mode=_introMode,annual0=capNow()*getHours()*365;
-  var kw=new Array(24).fill(0),gn=new Array(24).fill(0);
+  var kw=new Array(24).fill(0),gn=new Array(24).fill(0),ex=new Array(24).fill(0);
   ds.forEach(function(d){
     var gday=annual0*DIST[d.m-1]/d.dim,shape=mode==='realtime'?solarShape(d.m):null;
-    for(var h=0;h<24;h++){ kw[h]+=d.h[h]; gn[h]+=shape?gday*shape[h]:gday/24; }
+    for(var h=0;h<24;h++){
+      var L=d.h[h],g=shape?gday*shape[h]:gday/24;
+      kw[h]+=L; gn[h]+=g; ex[h]+=Math.max(0,g-L);
+    }
   });
   var n=ds.length;
-  return kw.map(function(k,h){return{hour:h,kwh:Math.round(k/n),gen:gn[h]/n};});
+  /* excess는 "그 시간대 평균 kwh/gen"끼리 비교(gen>kwh)해 구하면 안 됨 — 날짜별로
+     평균을 내기 전에 각 날짜·시간마다 따로 초과분을 계산해 평균해야, 예를 들어
+     주말엔 소비가 적어 그 시간에 초과발전이 나더라도 평일 평균에 묻혀 사라지지
+     않는다(상단 카드의 월별 초과발전량(matchYear)과 같은 방식으로 맞춤). */
+  return kw.map(function(k,h){return{hour:h,kwh:Math.round(k/n),gen:gn[h]/n,excess:ex[h]/n};});
 }
 
 /* ══════════ 목표 RE100 → 필요 설비용량 역산 (이분탐색) ══════════ */
@@ -1156,31 +1167,37 @@ function renderChartAnnual(){
   var gLine=smoothLine(data.map(function(m,i){return[px(i),pyG(m)];}));
   var dots='',labels='';
 
-  /* 초과발전 영역: gen fill을 "kwh 곡선 위쪽" clipPath로 마스킹
-     → gen > kwh인 구간만 정확히 빨간색, 전기사용량 > gen인 구간 절대 포함 안 됨 */
-  var revPts=[];
-  for(var _i=n-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
-  /* clipPath 영역: 차트 상단 ~ kwh 곡선까지 (= kwh 곡선 위쪽) */
-  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smoothLine(revPts).replace(/^M/,'L')+' Z';
-  /* 빨간 영역: gen fill 전체를 clipPath로 자름 → kwh 위로 튀어나온 gen만 표시 */
-  var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
+  /* 초과발전 표시: "월 발전량 곡선이 월 사용량 곡선 위로 튀어나온 구간"을 clip으로
+     잘라 보여주던 기존 방식은, 월 총발전량이 월 총사용량보다 항상 작은(=곡선이
+     교차하지 않는) 사업장에서는 m.excess(실제로는 0이 아닌, 시간대별 매칭으로
+     구해진 월 초과발전량)가 있어도 그래프에 전혀 안 보이는 문제가 있었음 — 곡선
+     교차 여부 대신 m.excess 값 자체를 막대 높이로 그려(같은 축척 maxV) 해결 */
+  var exMaxLocal=Math.max.apply(null,data.map(function(m){return m.excess||0;}));
+  var exBars='';
+  if(exMaxLocal>0){
+    var barW=Math.max(3,(iW/n)*0.5);
+    data.forEach(function(m,i){
+      if(!m.excess) return;
+      var x=px(i),h=(m.excess/maxV)*iH,y=baseY-h;
+      exBars+='<rect x="'+(x-barW/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="rgba(220,80,80,.55)" rx="1.5"/>';
+    });
+  }
 
   data.forEach(function(m,i){
     var x=px(i);
     labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+bucketLabel(m)+'</text>';
     dots+='<circle cx="'+x+'" cy="'+pyC(m).toFixed(1)+'" r="3" fill="rgba(160,160,160,.85)"/>';
-    dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="3" fill="rgba(93,168,122,.9)"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(m).toFixed(1)+'" r="'+(m.excess?4:3)+'" fill="'+(m.excess?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
   });
 
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
     +'<linearGradient id="gc" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
     +'<linearGradient id="gg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
-    +'<clipPath id="ex-clip"><path d="'+clipD+'"/></clipPath>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg)"/>'
-    +'<path d="'+genAreaD+'" fill="rgba(220,80,80,.30)" clip-path="url(#ex-clip)"/>'
+    +exBars
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
     +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
@@ -1226,11 +1243,14 @@ function renderChartMonthly(){
   }
 
   var selfRate=m.kwh>0?Math.min(100,m.eff/m.kwh*100):0;
-  /* 초과발전량·초과시간대수를 같은 패턴 데이터에서 함께 계산 — 이전엔 시간대수는
-     패턴에서, 초과발전량(kWh)은 월 합계(gen-kwh)에서 따로 계산해 서로 달라
-     "초과 시간대는 찍히는데 초과발전량은 0"처럼 보이는 불일치가 있었음 */
+  /* 초과시간대수는 d.excess(날짜별로 따로 구한 초과분의 평균, getMonthHourlyPattern
+     참고)로 판정한다. "그 시간대 평균 kwh"와 "평균 gen"을 먼저 구한 뒤 비교
+     (d.gen>d.kwh)하면, 평일엔 소비가 많아 초과가 없고 주말엔 소비가 적어 초과가
+     나는 달에서 평일 평균에 묻혀 초과가 전혀 없는 것처럼 보이는 문제가 있었음 —
+     실제로는 카드의 월별 초과발전량(matchYear)처럼 항상 0이 아닌데도 그래프엔
+     아무 표시가 없어 "카드엔 나오는데 그래프엔 안 보인다"는 불일치가 생겼었음. */
   var excessHours=0;
-  data.forEach(function(d){ if(d.gen>d.kwh) excessHours++; });
+  data.forEach(function(d){ if(d.excess>0) excessHours++; });
   var excess=m.dayCount>0?m.excess/m.dayCount:0;
   var genNote=_introMode==='monthly'?' <span style="color:var(--tx4);font-size:10px">(월간균등 배분)</span>':'';
   if(m.partial) genNote+=' <span style="color:var(--tx4);font-size:10px">(부분월 '+m.dayCount+'일)</span>';
@@ -1256,10 +1276,20 @@ function renderChartMonthly(){
   var gLine=smoothLine(data.map(function(d,i){return[px(i),pyG(d)];}));
   var dots='',labels='';
 
-  var revPts=[];
-  for(var _i=n2-1;_i>=0;_i--) revPts.push([px(_i),pyC(data[_i])]);
-  var clipD='M'+pL+','+pT+' L'+(pL+iW)+','+pT+smoothLine(revPts).replace(/^M/,'L')+' Z';
-  var genAreaD=gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z';
+  /* 초과발전 표시: 평균 gen/kwh 곡선이 교차하는 구간을 clip으로 잘라 보여주던
+     기존 방식은 "두 평균 곡선끼리는 교차하지 않는데 날짜별로는 초과가 있는" 달에서
+     아무것도 안 보이는 문제가 있어, d.excess(날짜별 초과분의 평균)를 그대로 막대
+     높이로 그리는 방식으로 교체 — kwh/gen과 같은 축척(maxV)이라 크기 비교가 가능함 */
+  var exMaxLocal=Math.max.apply(null,data.map(function(d){return d.excess;}));
+  var exBars='';
+  if(exMaxLocal>0){
+    var barW=Math.max(2,(iW/n2)*0.5);
+    data.forEach(function(d,i){
+      if(d.excess<=0) return;
+      var x=px(i),h=(d.excess/maxV)*iH,y=baseY-h;
+      exBars+='<rect x="'+(x-barW/2).toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+h.toFixed(1)+'" fill="rgba(220,80,80,.55)" rx="1"/>';
+    });
+  }
 
   /* 24개 시간대를 모두 표시하면 겹치므로 3시간 간격으로만 라벨 표시(1~24시 표기) */
   data.forEach(function(d,i){
@@ -1267,20 +1297,19 @@ function renderChartMonthly(){
     if(i%3===0 || i===n2-1){
       labels+='<text x="'+x+'" y="'+(H-8)+'" text-anchor="middle" fill="#5a5a5a" font-size="9">'+(d.hour+1)+'시</text>';
     }
-    var over=d.gen>d.kwh;
+    var over=d.excess>0;
     dots+='<circle cx="'+x+'" cy="'+pyC(d).toFixed(1)+'" r="2.5" fill="rgba(160,160,160,.85)"/>';
-    dots+='<circle cx="'+x+'" cy="'+pyG(d).toFixed(1)+'" r="2.5" fill="'+(over?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
+    dots+='<circle cx="'+x+'" cy="'+pyG(d).toFixed(1)+'" r="'+(over?3.5:2.5)+'" fill="'+(over?'rgba(220,80,80,.95)':'rgba(93,168,122,.9)')+'"/>';
   });
 
   el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="width:100%;height:100%;display:block">'
     +'<defs>'
     +'<linearGradient id="gc2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(160,160,160,.30)"/><stop offset="100%" stop-color="rgba(160,160,160,.02)"/></linearGradient>'
     +'<linearGradient id="gg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="rgba(93,168,122,.40)"/><stop offset="100%" stop-color="rgba(93,168,122,.03)"/></linearGradient>'
-    +'<clipPath id="ex-clip2"><path d="'+clipD+'"/></clipPath>'
     +'</defs>'
     +'<path d="'+cLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gc2)"/>'
     +'<path d="'+gLine+' L'+(pL+iW)+','+baseY+' L'+pL+','+baseY+' Z" fill="url(#gg2)"/>'
-    +'<path d="'+genAreaD+'" fill="rgba(220,80,80,.30)" clip-path="url(#ex-clip2)"/>'
+    +exBars
     +'<path d="'+cLine+'" fill="none" stroke="rgba(160,160,160,.75)" stroke-width="1.8"/>'
     +'<path d="'+gLine+'" fill="none" stroke="rgba(93,168,122,.9)" stroke-width="1.8"/>'
     +dots+labels+'</svg>';
