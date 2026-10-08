@@ -1,8 +1,12 @@
-/* E-PPA app.js — 전력 데이터 파싱 + KMA/NASA MCP 보정 GHI + 분석 네비게이션 */
+/* E-PPA app.js — 전력 데이터 파싱(AMI 시간별 일 단위 보존) + NASA POWER GHI 기반 발전 분포 + 분석 네비게이션
+   v2 변경점
+   · AMI를 월 합계가 아니라 "일별 24시간 kWh"로 보존(days) → summary에서 일 단위 시간별 매칭·시간대별 요금 계산
+   · 시간대(경/중/최대) 구분·공휴일·요금 계산은 summary.html에서 요금제/공휴일과 함께 계산(여기서는 하지 않음)
+   · 롤링 12개월(예: 8/6~다음해 8/5) 파일도 일 단위로 처리 — 부분월/13개 버킷 문제 방지 */
 
 'use strict';
 
-let parsedData = null; // { monthly, type }
+let parsedData = null; // { monthly, days, type }
 var _region = 'sudo'; // 'sudo' | 'nonsudo'
 var _distSource = 'actual'; // 'actual'(3개년 실측 분포, 기본값) | 'forecast'(GHI 모델 기반 이론치)
 
@@ -13,6 +17,8 @@ var GHI_REGION = {
   sudo:    [2.29, 3.22, 4.25, 4.86, 5.32, 5.69, 4.64, 4.93, 4.01, 3.19, 2.56, 2.06],
   nonsudo: [2.82, 3.34, 4.31, 5.05, 5.57, 5.48, 5.00, 5.29, 3.93, 3.35, 3.02, 2.54]
 };
+var PR_DEFAULT = 0.82;
+var DAYS_NONLEAP = [31,28,31,30,31,30,31,31,30,31,30,31];
 
 function selectRegion(r) {
   _region = r;
@@ -47,7 +53,7 @@ function selectDistSource(s) {
    실측 분포처럼 연도와 무관한 고정 비율표를 쓰기 위해 평년(365일) 기준으로 계산 —
    윤년 2월 하루 차이는 비중에 0.1%p 미만 영향이라 연도별로 다시 계산할 필요는 없음. */
 function getGHIDist() {
-  var ghi = getGHI(), days = [31,28,31,30,31,30,31,31,30,31,30,31];
+  var ghi = getGHI(), days = DAYS_NONLEAP;
   var raw = {}, total = 0;
   for (var m = 1; m <= 12; m++) { raw[m] = ghi[m] * days[m - 1]; total += raw[m]; }
   var dist = {};
@@ -60,6 +66,14 @@ function getMonthlyDist() {
   var vals = MONTHLY_DIST_REGION[_region], dist = {};
   for (var m = 1; m <= 12; m++) dist[m] = vals[m - 1] / 100;
   return dist;
+}
+
+/* GHI 모델 기준 연평균 발전시간(h/day) = PR × Σ(GHI×일수) / 365
+   (summary 초기값으로 사용 — 예전엔 자가소비량으로 역산해 초과발전이 있으면 값이 낮게 잡히던 문제 수정) */
+function getGhiHours() {
+  var ghi = getGHI(), s = 0;
+  for (var m = 1; m <= 12; m++) s += ghi[m] * DAYS_NONLEAP[m - 1];
+  return PR_DEFAULT * s / 365;
 }
 
 /* ── 초기화 ── */
@@ -102,15 +116,16 @@ function onFile(file) {
       var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
       var type    = autoDetect(rows);
-      var monthly = type === 'ami' ? parseAMI(rows) : parseMonthly(rows);
+      var parsed  = type === 'ami' ? parseAMI(rows) : { monthly: parseMonthly(rows), days: null };
+      var monthly = parsed.monthly;
 
       if (!monthly || monthly.length === 0) {
         alert('데이터를 읽을 수 없습니다.\nKEPCO AMI 형식 또는 월별(년도|월|사용량|청구금액) 형식을 확인하세요.');
         return;
       }
 
-      parsedData = { monthly: monthly, type: type };
-      onLoaded(file.name, monthly);
+      parsedData = { monthly: monthly, days: parsed.days, type: type };
+      onLoaded(file.name, monthly, parsed.days);
     } catch (err) {
       alert('파일 파싱 오류: ' + err.message);
     }
@@ -127,31 +142,11 @@ function autoDetect(rows) {
   return 'monthly';
 }
 
-/* ── 계절·시간대 구분 (한전 전기요금표 2026.6.1 시행 기준) ──
-   토요일은 최대부하→중간부하 재분류. 공휴일 재분류(→경부하)는 별도 휴일 목록이
-   필요해 미반영 — 평일/토요일 구분까지만 실측 반영, 나머지는 추정치 유지. */
-function getSeason(month) {
-  if (month >= 6 && month <= 8) return 'summer';
-  if ([3, 4, 5, 9, 10].indexOf(month) >= 0) return 'spring_fall';
-  return 'winter';
-}
-function getTouBucket(hour, season) {
-  if (hour >= 22 || hour < 8) return 'lo';                 /* 경부하 22~08시, 전 계절 동일 */
-  if (season === 'winter') {
-    if ((hour >= 8 && hour < 9) || (hour >= 12 && hour < 16) || (hour >= 19 && hour < 22)) return 'mid';
-    return 'hi';                                            /* 09~12, 16~19시 */
-  }
-  if ((hour >= 8 && hour < 15) || (hour >= 21 && hour < 22)) return 'mid';
-  return 'hi';                                              /* 15~21시 */
-}
-
 /* ── KEPCO AMI 파싱 (15분/30분/60분 등 간격 자동감지 + 일합계) ──
    열의 "개수"가 아니라 헤더의 시간 라벨(00:15~24:00 또는 01:00~24:00 등, 합계)로
-   각 열이 몇 번째 구간인지 확정 판별. 예전엔 앞에서부터 96개(15분 간격)를 구간값으로
-   고정 가정했는데, 특정 날짜에 구간 하나라도 빈 칸(결측)이면 뒤 구간들이 통째로 밀리면서
-   합계열(그날 총사용량, 수만 단위)까지 구간값 후보에 섞여 최댓값으로 잘못 잡히는 문제가
-   있었음(요금적용전력이 터무니없이 크게 나오는 원인). 라벨 간 최소 간격으로 구간 길이
-   (stepMin)를 자동감지해 15분/60분 등 다른 간격의 파일도 지원. */
+   각 열이 몇 번째 구간인지 확정 판별. 결측 구간이 있어도 뒤 구간이 밀리지 않음.
+   라벨 간 최소 간격으로 구간 길이(stepMin)를 자동감지해 15분/60분 등 다른 간격도 지원.
+   반환: { monthly:[달력월 집계], days:[{y,m,d,w,h:[24시간 kWh]}] } */
 function parseAMI(rows) {
   var header   = rows[0] || [];
   var timeCols = [];  /* {col, totalMin} — 헤더에서 인식된 시각 라벨들 */
@@ -163,7 +158,6 @@ function parseAMI(rows) {
     if (tm) timeCols.push({ col: h, totalMin: parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10) });
   }
 
-  /* 라벨 간 최소 간격(분)을 구간 길이로 자동감지 (15분 KEPCO 표준 AMI, 60분 시간단위 등) */
   var stepMin = 15, slotCount = 96, colInterval = {}, useHeaderMap = false;
   if (timeCols.length >= 4) {
     var mins = timeCols.map(function (t) { return t.totalMin; }).sort(function (a, b) { return a - b; });
@@ -185,11 +179,9 @@ function parseAMI(rows) {
     }
   }
   var intervalToKw = 60 / stepMin; /* 구간 에너지(kWh) → 순시 kW 환산 배수(15분=4배, 60분=1배 등) */
+  var slotsPerHour = Math.max(1, Math.round(60 / stepMin));
 
-  /* ── 1차 패스: 날짜별 원본(raw) 값 수집 — 단위(kWh/Wh) 판정은 파일 전체를 보고
-     한 번만 내려야 함. 예전엔 "하루 합계 5만 초과=Wh"로 날짜별 판정했는데, 대형
-     사업장(예: 5MW급, 평일 하루 7~9만kWh)은 평일만 Wh로 오판되어 1000으로 나뉘고
-     주말은 정상 유지되는 식으로 날짜마다 들쭉날쭉하게 깨지는 문제가 있었음. */
+  /* ── 1차 패스: 날짜별 원본(raw) 값 수집 — 단위(kWh/Wh) 판정은 파일 전체를 보고 한 번만 ── */
   var seenDates  = {};
   var dayRecords = [];
   for (var r = 0; r < rows.length; r++) {
@@ -252,61 +244,82 @@ function parseAMI(rows) {
     });
   }
 
-  /* 파일 전체에서 "구간(1개 15분/1시간 등) 값"의 최댓값으로 Wh/kWh를 1회만 판정.
-     대형 사업장이라도 구간 하나의 값이 10만kWh를 넘는 경우는 사실상 없어(예: 1시간
-     구간이면 순간 100MW급) 날짜별로 흔들리지 않는 안전한 임계값으로 쓸 수 있음. */
+  /* 파일 전체에서 "구간(1개 15분/1시간 등) 값"의 최댓값으로 Wh/kWh를 1회만 판정 */
   var globalMaxInterval = 0;
   dayRecords.forEach(function (d) {
     if (d.dayMaxInterval > globalMaxInterval) globalMaxInterval = d.dayMaxInterval;
   });
   var wattUnit = globalMaxInterval > 100000;
 
-  /* ── 2차 패스: 월별 집계(단위 보정은 파일 전체에 동일하게 적용) ── */
+  /* 구간값 → 시간별(0~23시) kWh. 결측 구간이 있으면 그 시간의 존재 구간 평균으로 보정,
+     시간 전체가 비면 그날 다른 시간 평균으로 채운 뒤 일합계에 맞춰 스케일 */
+  function toHourly(intervalVals, dayKwh) {
+    var hrs = new Array(24), have = new Array(24), cnt, hh, k, s;
+    for (hh = 0; hh < 24; hh++) {
+      s = 0; cnt = 0;
+      for (k = 0; k < slotsPerHour; k++) {
+        var idx = hh * slotsPerHour + k;
+        var val = intervalVals[idx];
+        if (val !== undefined && val !== null && !isNaN(val)) { s += val; cnt++; }
+      }
+      if (cnt > 0) { hrs[hh] = s * (slotsPerHour / cnt); have[hh] = true; }
+      else { hrs[hh] = 0; have[hh] = false; }
+    }
+    var okSum = 0, okN = 0;
+    for (hh = 0; hh < 24; hh++) if (have[hh]) { okSum += hrs[hh]; okN++; }
+    if (okN === 0) return null;
+    var fill = okSum / okN;
+    for (hh = 0; hh < 24; hh++) if (!have[hh]) hrs[hh] = fill;
+    var tot = 0;
+    for (hh = 0; hh < 24; hh++) tot += hrs[hh];
+    var scale = (tot > 0 && dayKwh > 0) ? dayKwh / tot : 1;
+    for (hh = 0; hh < 24; hh++) hrs[hh] = Math.round(hrs[hh] * scale * 100) / 100;
+    return hrs;
+  }
+
+  /* ── 2차 패스: 월별 집계 + 일별 시간 배열(단위 보정은 파일 전체에 동일하게 적용) ── */
   var monthly = {};
+  var days = [];
   dayRecords.forEach(function (d) {
     var dayKwh = d.dayKwh, dayMaxInterval = d.dayMaxInterval, intervalVals = d.intervalVals;
-    if (wattUnit) { dayKwh /= 1000; dayMaxInterval /= 1000; }
+    var unitDiv = wattUnit ? 1000 : 1;
+    dayKwh /= unitDiv; dayMaxInterval /= unitDiv;
+    var vals = intervalVals.map(function (x) {
+      return (x === undefined || x === null) ? x : x / unitDiv;
+    });
+
+    var hourly = toHourly(vals, dayKwh);
+    if (!hourly) return;
 
     var key = d.year + '-' + d.month;
     if (!monthly[key]) monthly[key] = {
-      year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, lo: 0, mid: 0, hi: 0,
-      days: [], hourKwh: new Array(24).fill(0), dayCount: 0
+      year: d.year, month: d.month, kwh: 0, amount: 0, maxInterval: 0, dayCount: 0
     };
     monthly[key].kwh += dayKwh;
-    monthly[key].days.push({ day: d.day, kwh: Math.round(dayKwh) });
     monthly[key].dayCount++;
     /* 요금적용전력(순시 최대수요, kW) = 구간 최대 에너지(kWh) × intervalToKw */
     monthly[key].maxInterval = Math.max(monthly[key].maxInterval, dayMaxInterval);
 
-    /* 시간대별(경부하/중간부하/최대부하) 실측 집계 + 시간대별(0~23시) 평균 패턴용 합산
-       — intervalVals[ti]는 항상 정확히 ti번째 구간 */
-    var dow    = new Date(d.year, d.month - 1, d.day).getDay(); /* 0=일 ~ 6=토 */
-    var season = getSeason(d.month);
-    for (var ti = 0; ti < intervalVals.length; ti++) {
-      var val = intervalVals[ti];
-      if (val === undefined || val === null) continue;
-      var hour   = Math.min(23, Math.floor(ti * stepMin / 60));
-      var bucket = getTouBucket(hour, season);
-      if (dow === 6 && bucket === 'hi') bucket = 'mid'; /* 토요일: 최대부하→중간부하 */
-      var kwhVal = wattUnit ? val / 1000 : val;
-      monthly[key][bucket] += kwhVal;
-      monthly[key].hourKwh[hour] += kwhVal; /* 월 내 모든 날짜의 같은 시간대를 합산 → 평균 내면 "하루 평균 시간대별 패턴" */
-    }
+    var dow = new Date(d.year, d.month - 1, d.day).getDay(); /* 0=일 ~ 6=토 */
+    days.push({ y: d.year, m: d.month, d: d.day, w: dow, h: hourly });
   });
 
-  return Object.values(monthly)
+  days.sort(function (a, b) {
+    return a.y !== b.y ? a.y - b.y : (a.m !== b.m ? a.m - b.m : a.d - b.d);
+  });
+
+  var monthlyArr = Object.values(monthly)
     .sort(function (a, b) { return a.year !== b.year ? a.year - b.year : a.month - b.month; })
     .map(function (m) {
+      var dim = new Date(m.year, m.month, 0).getDate();
       return {
         year: m.year, month: m.month, kwh: Math.round(m.kwh), amount: Math.round(m.amount),
         demandKw: Math.round(m.maxInterval * intervalToKw),
-        lo: Math.round(m.lo), mid: Math.round(m.mid), hi: Math.round(m.hi),
-        days: m.days.sort(function (a, b) { return a.day - b.day; }),
-        hourly: m.hourKwh.map(function (sum, h) {
-          return { hour: h, kwh: m.dayCount > 0 ? Math.round(sum / m.dayCount) : 0 };
-        })
+        dayCount: m.dayCount, dim: dim, partial: m.dayCount < dim
       };
     });
+
+  return { monthly: monthlyArr, days: days };
 }
 
 /* ── 월별 청구 데이터 파싱 (년도|월|사용량|청구금액) ── */
@@ -344,16 +357,17 @@ function parseMonthly(rows) {
 }
 
 /* ── 파일 로드 완료 처리 ── */
-function onLoaded(filename, monthly) {
+function onLoaded(filename, monthly, days) {
   var box = document.getElementById('upload-box');
   box.classList.add('has-file');
   document.getElementById('upload-label').textContent = filename;
 
   var totalKwh = monthly.reduce(function (s, m) { return s + m.kwh; }, 0);
+  var nDays = days ? days.length : 0;
   document.getElementById('upload-hint').textContent =
-    monthly.length + '개월 인식 · 총 ' + (totalKwh / 1000).toFixed(0) + 'MWh';
+    (days ? nDays + '일(' + (nDays / 30.4).toFixed(1) + '개월)' : monthly.length + '개월') +
+    ' 인식 · 총 ' + (totalKwh / 1000).toFixed(0) + 'MWh';
 
-  /* 월 누락 경고 */
   var warnEl = document.getElementById('upload-warn');
   if (!warnEl) {
     warnEl = document.createElement('div');
@@ -361,14 +375,30 @@ function onLoaded(filename, monthly) {
     warnEl.style.cssText = 'font-size:11px;margin-top:8px;line-height:1.7;padding:8px 10px;border-radius:6px;display:none';
     box.appendChild(warnEl);
   }
-  if (monthly.length < 12) {
+
+  var warnStyle = ';background:rgba(218,119,86,.08);border:1px solid rgba(218,119,86,.25);color:#da7756;display:block';
+  var infoStyle = ';background:rgba(93,168,122,.08);border:1px solid rgba(93,168,122,.25);color:#5da87a;display:block';
+
+  if (days) {
+    /* AMI: 일 단위 커버리지로 판단 (롤링 12개월 파일은 달력월 13개로 보이지만 365일이면 정상) */
+    if (nDays < 350) {
+      warnEl.style.cssText = 'font-size:11px;margin-top:8px;line-height:1.7;padding:8px 10px;border-radius:6px' + warnStyle;
+      warnEl.textContent = '⚠ ' + nDays + '일치 데이터 — 1년(365일)보다 짧아 연간 분석값이 낮게 나올 수 있습니다';
+    } else if (monthly.length > 12) {
+      warnEl.style.cssText = 'font-size:11px;margin-top:8px;line-height:1.7;padding:8px 10px;border-radius:6px' + infoStyle;
+      warnEl.textContent = '✓ ' + nDays + '일 · 달력월 ' + monthly.length + '개(부분월 포함)로 걸쳐 있는 연속 데이터 — 일 단위로 정확히 계산합니다';
+    } else {
+      warnEl.style.display = 'none';
+      warnEl.textContent = '';
+    }
+  } else if (monthly.length < 12) {
     var presentMonths = monthly.map(function(m){ return m.month; });
     var missingNums = [];
     for (var i = 1; i <= 12; i++) {
       if (presentMonths.indexOf(i) < 0) missingNums.push(i + '월');
     }
     var missingStr = missingNums.length ? missingNums.join(', ') + ' 누락' : (12 - monthly.length) + '개월 누락';
-    warnEl.style.cssText += ';background:rgba(218,119,86,.08);border:1px solid rgba(218,119,86,.25);color:#da7756;display:block';
+    warnEl.style.cssText = 'font-size:11px;margin-top:8px;line-height:1.7;padding:8px 10px;border-radius:6px' + warnStyle;
     warnEl.textContent = '⚠ ' + missingStr + ' — 데이터가 부족해 연간 분석값이 낮게 나올 수 있습니다';
   } else {
     warnEl.style.display = 'none';
@@ -380,22 +410,9 @@ function onLoaded(filename, monthly) {
   cfg.style.display = 'flex';
 }
 
-/* ── 연간 태양광 발전량 (kWh) — NASA POWER GHI 기반 ── */
-function calcAnnualSolar(cap, ghi, year) {
-  var PR = 0.82, total = 0;
-  for (var m = 1; m <= 12; m++) {
-    var days = new Date(year, m, 0).getDate();
-    total += ghi[m] * days;
-  }
-  return cap * PR * total;
-}
-
-/* ── 월별 태양광 발전량 (kWh) — 연간 총량 × 실측 월별 분포 ── */
-function calcSolar(cap, ghi, dist, month, year) {
-  return calcAnnualSolar(cap, ghi, year) * dist[month];
-}
-
-/* ── 메인 분석 실행 ── */
+/* ── 메인 분석 실행 ──
+   발전량·자가소비·초과발전·요금은 모두 summary.html에서 계산한다(설비용량·발전시간·정산방식·요금제를
+   화면에서 바꿀 때마다 다시 계산해야 하므로). 여기서는 입력값과 지역 분포만 넘긴다. */
 function runAnalysis() {
   if (!parsedData) {
     alert('전력 데이터 파일을 먼저 업로드하세요.');
@@ -410,32 +427,32 @@ function runAnalysis() {
 
   var tariffPlan = document.getElementById('inp-tariff-plan').value || '';
   var ghi     = getGHI();
-  var dist    = getMonthlyDist();
-  var monthly = parsedData.monthly;
+  var distObj = getMonthlyDist();
+  var dist    = [];
+  for (var m = 1; m <= 12; m++) dist.push(distObj[m]);
 
-  var enriched = monthly.map(function (m) {
-    var gen      = calcSolar(cap, ghi, dist, m.month, m.year);
-    var eff      = Math.min(gen, m.kwh);
-    var selfRate = m.kwh > 0 ? eff / m.kwh : 0;
-    return {
-      year: m.year, month: m.month,
-      kwh: m.kwh, amount: m.amount,
-      gen: Math.round(gen),
-      eff: Math.round(eff),
-      selfRate: selfRate,
-      demandKw: m.demandKw,
-      lo: m.lo, mid: m.mid, hi: m.hi,
-      days: m.days || null,
-      hourly: m.hourly || null
-    };
-  });
-
-  localStorage.setItem('eppa_results', JSON.stringify({
-    monthly:     enriched,
-    params:      { region: _region, cap: cap, ppa: ppa, tariffPlan: tariffPlan, pr: 0.82 },
+  var payload = {
+    monthly:     parsedData.monthly,
+    days:        parsedData.days || null,
+    params:      { region: _region, cap: cap, ppa: ppa, tariffPlan: tariffPlan, pr: PR_DEFAULT,
+                   distSource: _distSource, dist: dist, ghiHours: getGhiHours() },
     ghi:         ghi,
     generatedAt: new Date().toISOString()
-  }));
+  };
+
+  try {
+    localStorage.setItem('eppa_results', JSON.stringify(payload));
+  } catch (e) {
+    /* 저장 용량 초과 등 — 일별 데이터를 빼고 월 단위로라도 진행 */
+    try {
+      payload.days = null;
+      localStorage.setItem('eppa_results', JSON.stringify(payload));
+      alert('브라우저 저장 용량 문제로 일별 데이터를 저장하지 못해 월 단위로 분석합니다.');
+    } catch (e2) {
+      alert('분석 데이터를 저장할 수 없습니다: ' + e2.message);
+      return;
+    }
+  }
 
   window.location.href = 'summary.html';
 }
