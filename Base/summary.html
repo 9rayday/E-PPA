@@ -1072,8 +1072,25 @@ var _shapes={};
 function solarShape(month){ return _shapes[month]||(_shapes[month]=getSolarHourlyShape(month)); }
 function getHours(){ return parseFloat(document.getElementById('inp-hours').value)||DEFAULT_HOURS; }
 function capNow(){ return parseFloat(document.getElementById('inp-cap').value)||params.cap||0; }
+
+/* 하루(d) 안에서 발전을 24시간에 배분하는 비중(합계 1).
+   - realtime: 일출~일몰 사인곡선(실제 태양 곡선)
+   - monthly(균등정산): 그 날의 "실제 시간대별 소비 비중"대로 배분한다. 이렇게
+     하면 모든 시간대에서 발전/소비 비율이 똑같아져(gen(h)/L(h) = 그날 총발전÷
+     총사용, 어느 시간이든 동일) 수학적으로 "하루 총발전량 vs 하루 총사용량"을
+     그대로 상계한 것과 같아진다 — 균등정산은 시간대 매칭 없이 그 날(또는 그
+     달) 생산량을 전부 사용자가 사는 방식이라 초과발전이 원칙적으로 없다는
+     실제 정산 방식을 그대로 반영한 것. (이전엔 24시간에 "똑같이" 나눠버려서
+     소비가 적은 심야에도 초과발전이 찍히는 아티팩트가 있었음 — 그건 균등정산의
+     실제 의미가 아니라 단순 구현상의 문제였음) */
+function hourlyGenShape(d,mode){
+  if(mode==='realtime') return solarShape(d.m);
+  var dayTotal=0;
+  for(var hh=0;hh<24;hh++) dayTotal+=d.h[hh];
+  return dayTotal>0 ? d.h.map(function(v){return v/dayTotal;}) : new Array(24).fill(1/24);
+}
+
 /* 1년 시간대별 매칭. 모든 일자·시간에서 min(소비, 발전)을 자가소비로, 나머지를 초과발전으로 집계.
-   발전 배분: realtime=일출~일몰 사인곡선 / monthly=월 발전량÷월 전체시간(균등)
    sF=설비 열화 배수. 반환 B[i]는 monthly[i] 버킷별 합계. */
 function matchYear(sF,capKw){
   var annual0=capKw*getHours()*365*sF,mode=_introMode;
@@ -1081,9 +1098,9 @@ function matchYear(sF,capKw){
   var tk=0,tg=0,ts=0,te=0,eb=0,es=0;
   for(var i=0;i<DAYS.length;i++){
     var d=DAYS[i],b=B[d.bi],gday=annual0*DIST[d.m-1]/d.dim;
-    var shape=mode==='realtime'?solarShape(d.m):null;
+    var shape=hourlyGenShape(d,mode);
     for(var h=0;h<24;h++){
-      var L=d.h[h],g=shape?gday*shape[h]:gday/24,s=L<g?L:g,r=d.r[h];
+      var L=d.h[h],g=gday*shape[h],s=L<g?L:g,r=d.r[h];
       b.kwh+=L; b.gen+=g; b.self+=s; b.excess+=g-s; b.eBase+=r*L; b.eSave+=r*s;
       if(s>b.peak) b.peak=s;
     }
@@ -1110,9 +1127,9 @@ function getMonthHourlyPattern(m,genOverride){
   var mode=_introMode,annual0=capNow()*getHours()*365;
   var kw=new Array(24).fill(0),gn=new Array(24).fill(0),ex=new Array(24).fill(0);
   ds.forEach(function(d){
-    var gday=annual0*DIST[d.m-1]/d.dim,shape=mode==='realtime'?solarShape(d.m):null;
+    var gday=annual0*DIST[d.m-1]/d.dim,shape=hourlyGenShape(d,mode);
     for(var h=0;h<24;h++){
-      var L=d.h[h],g=shape?gday*shape[h]:gday/24;
+      var L=d.h[h],g=gday*shape[h];
       kw[h]+=L; gn[h]+=g; ex[h]+=Math.max(0,g-L);
     }
   });
@@ -1215,7 +1232,7 @@ function renderNarrative(){
   var excA=excessCauseAnalysis();
   if(excA.total>0){
     html+='<br>초과발전량이 발생한 이유는 <b>'+excA.dowReason+'</b>, <b>'+excA.seasReason+'</b>'
-      +(excA.hourReason?', <b>'+excA.hourReason+'</b>':'')+'입니다.'+excA.hourNote;
+      +(excA.hourReason?', <b>'+excA.hourReason+'</b>':'')+'입니다.';
   }
   if(DAYS_SYNTH&&!isSample) html+='<br><span style="color:var(--orange)">※ 월별 청구서만 업로드되어 시간대별 부하 형태를 일반 2교대 패턴으로 가정했습니다. 정확한 분석은 AMI(시간·15분 단위) 데이터가 필요합니다.</span>';
   if(isSample) html+='<br><span style="color:var(--tx4)">※ 샘플 데이터입니다.</span>';
@@ -1226,17 +1243,18 @@ function renderNarrative(){
    발생한 이유는 **X**, **Y**, **Z**입니다")용. 요일은 주말(토·일) 합산이 전체 초과의
    과반이면 "주말(토·일)"로 묶어 말하고, 아니면 가장 큰 단일 요일을 지목한다.
    시간대는 초과가 실제로 찍히는 시(0~23시) 중 가장 이른 시~가장 늦은 시로 범위를
-   말하되, 거의 하루 종일(18시간 이상) 찍히면 "하루 대부분의 시간대"로 뭉뚱그리고
-   — 이건 월간균등 모드의 특성(심야에도 발전량을 균등 배분)으로 생기는 경우가
-   많아 그 사실을 hourNote로 따로 덧붙인다. */
+   말하되, 거의 하루 종일(18시간 이상) 찍히면 "하루 대부분의 시간대"로 뭉뚱그린다.
+   월간균등(균등정산) 모드는 hourlyGenShape()가 그 날 소비 비중대로 발전을
+   배분해 원칙적으로 초과발전이 없으므로(해당 날 발전량이 사용량을 넘는 드문
+   경우만 예외), 이 문장 자체가 대부분 표시되지 않는다. */
 function excessCauseAnalysis(){
   var mode=_introMode,annual0=capNow()*getHours()*365;
   var dowEx=new Array(7).fill(0),seasEx={summer:0,spring_fall:0,winter:0},hourEx=new Array(24).fill(0),total=0;
   DAYS.forEach(function(d){
-    var gday=annual0*DIST[d.m-1]/d.dim,shape=mode==='realtime'?solarShape(d.m):null;
+    var gday=annual0*DIST[d.m-1]/d.dim,shape=hourlyGenShape(d,mode);
     var s=getSeason(d.m);
     for(var h=0;h<24;h++){
-      var L=d.h[h],g=shape?gday*shape[h]:gday/24,ex=g>L?g-L:0;
+      var L=d.h[h],g=gday*shape[h],ex=g>L?g-L:0;
       dowEx[d.w]+=ex; seasEx[s]+=ex; hourEx[h]+=ex; total+=ex;
     }
   });
@@ -1255,17 +1273,14 @@ function excessCauseAnalysis(){
 
   var hourList=[];
   for(var h2=0;h2<24;h2++) if(hourEx[h2]>0) hourList.push(h2);
-  var hourReason='',hourNote='';
+  var hourReason='';
   if(hourList.length>0){
-    if(hourList.length>=18){
-      hourReason='하루 대부분의 시간대';
-      if(mode==='monthly') hourNote=' <span style="color:var(--tx4);font-size:11px">(월간균등 배분 방식은 심야 시간에도 발전량을 똑같이 배분하기 때문에, 부하가 낮은 날은 그 시간대도 초과로 집계됩니다. 실제 태양광은 야간엔 발전하지 않으므로 시간대별 정산으로 바꾸면 더 정확한 패턴을 볼 수 있습니다.)</span>';
-    } else {
-      hourReason=(hourList[0]+1)+'~'+(hourList[hourList.length-1]+1)+'시';
-    }
+    hourReason=hourList.length>=18
+      ?'하루 대부분의 시간대'
+      :(hourList[0]+1)+'~'+(hourList[hourList.length-1]+1)+'시';
   }
   return {dowEx:dowEx,seasEx:seasEx,hourEx:hourEx,total:total,dowReason:dowReason,seasReason:SEAS_NAMES[maxSeas],
-    hourReason:hourReason,hourNote:hourNote};
+    hourReason:hourReason};
 }
 
 /* 요금적용전력 결정(한전 전기공급약관 시행세칙) — 직전 12개월 중 성수기(7·8·9·12·1·2월)와
