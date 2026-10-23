@@ -487,15 +487,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         </div>
         <div class="sim-row sim-row-4">
           <div>
-            <div class="form-label">전력손실반영금액</div>
-            <select class="sel-field" id="sel-loss" onchange="onAssumptionChange()">
-              <option value="on">반영 (자가소비×3.52%×SMP, 추정)</option>
-              <option value="off" selected>미반영</option>
-            </select>
+            <div class="form-label">초과발전 REC 기준단가 <span class="form-hint">원/kWh</span></div>
+            <input class="inp-s" id="inp-rec-base" type="number" value="180" step="0.1" min="0" onchange="onAssumptionChange()">
           </div>
           <div>
-            <div class="form-label">초과발전 REC 가중치</div>
+            <div class="form-label">초과발전 REC 가중치 <span class="form-hint">수량 표시용</span></div>
             <input class="inp-s" id="inp-recw" type="number" value="1.2" step="0.1" min="0" onchange="onAssumptionChange()">
+          </div>
+          <div>
+            <div class="form-label">부가정산금 과세비율</div>
+            <input class="inp-s" id="inp-adj-tax" type="number" value="0.7176" step="0.0001" min="0" max="1" onchange="onAssumptionChange()">
           </div>
           <div>
             <div class="form-label">일요일 요금 구분</div>
@@ -504,6 +505,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
               <option value="weekday">평일 취급</option>
             </select>
           </div>
+        </div>
+        <div class="sim-row sim-row-4">
           <div style="position:relative">
             <div class="form-label">공휴일 목록 <span class="form-hint">임시공휴일 제외</span></div>
             <div class="holiday-chips" id="holiday-chips"></div>
@@ -558,6 +561,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
    지역 일치 여부가 아님. 연계유형 입력을 받기 전까지는 종합손실률로 단순화. */
 var TRANS_LOSS = 0.0157; // 송전손실률 1.57%
 var COMB_LOSS  = 0.0352; // 종합손실률 3.52%
+/* 초과발전 REC 기준단가(원/kWh)·부가정산금 과세비율 기본값 — ④ 설정 탭(관리자)에서 변경·공유 저장 */
+var REC_BASE_DEFAULT = 180;
+var ADJ_TAXABLE_DEFAULT = 0.7176;
 /* PPA 망이용료 기본요금 단가 (원/kW·월, 이용규정 별표1·2 기준) */
 var FEE_BASIC_GEN = 667.36; // 발전측 송전 (모든 발전지역 동일)
 var FEE_BASIC_DEM = 667.61; // 수요측 송전 (모든 수요지역 동일)
@@ -900,8 +906,9 @@ function collectSettingsObj(){
     fuel:document.getElementById('inp-fuel').value,
     feeTrade:document.getElementById('inp-fee-trade').value,
     feeAdj:document.getElementById('inp-fee-adj').value,
-    loss:document.getElementById('sel-loss').value,
     recw:document.getElementById('inp-recw').value,
+    recBase:document.getElementById('inp-rec-base').value,
+    adjTax:document.getElementById('inp-adj-tax').value,
     sunday:document.getElementById('sel-sunday').value,
     holidays:document.getElementById('inp-holidays').value,
     smp:MONTHLY_SMP
@@ -913,8 +920,9 @@ function applySettingsObj(s){
   if(s.fuel!=null) document.getElementById('inp-fuel').value=s.fuel;
   if(s.feeTrade!=null) document.getElementById('inp-fee-trade').value=s.feeTrade;
   if(s.feeAdj!=null) document.getElementById('inp-fee-adj').value=s.feeAdj;
-  if(s.loss!=null) document.getElementById('sel-loss').value=s.loss;
   if(s.recw!=null) document.getElementById('inp-recw').value=s.recw;
+  if(s.recBase!=null) document.getElementById('inp-rec-base').value=s.recBase;
+  if(s.adjTax!=null) document.getElementById('inp-adj-tax').value=s.adjTax;
   if(s.sunday!=null) document.getElementById('sel-sunday').value=s.sunday;
   if(s.holidays) document.getElementById('inp-holidays').value=s.holidays;
   if(s.smp) Object.keys(s.smp).forEach(function(k){ MONTHLY_SMP[k]=s.smp[k]; });
@@ -1082,28 +1090,32 @@ function hourlyGenShape(d,mode){
   return mode==='realtime' ? solarShape(d.m) : FLAT_HOUR_SHAPE;
 }
 
-/* 1년 시간대별 매칭.
-   - realtime: 매 시간 min(소비,발전)을 자가소비로, 나머지를 초과발전으로 집계
+/* 1년 시간대별 매칭 — Settlement 정산 엔진(engine.js matchHour)과 같은 공급량 산식.
+   - realtime: 공급량 S = 소비 > 발전×(1−송전손실률) ? 발전 : 소비÷(1−송전손실률), 초과발전 = 발전 − S
+     (사용량을 채우려면 송전손실만큼 더 보내야 하므로 손실분까지 공급량으로 청구됨)
    - monthly(균등정산): 전기사용자가 발전소 발전량을 전량 구매하는 방식이라
      시간대 비교 자체를 하지 않음 — 자가소비=발전량 전부(클리핑 없음),
      초과발전은 개념적으로 존재하지 않아 항상 0
+   self = 공급량(PPA 청구 기준 kWh), cover = 공급량×(1−송전손실률) = 실제 사용량을 대체한 양
+   (한전 잔여요금·회피단가 산정용 — Settlement 부족전력량 = 사용량 − 공급량 + 공급량×손실률 과 같은 기준).
    sF=설비 열화 배수. 반환 B[i]는 monthly[i] 버킷별 합계. */
 function matchYear(sF,capKw){
   var annual0=capKw*getHours()*365*sF,mode=_introMode;
-  var B=monthly.map(function(){return{kwh:0,gen:0,self:0,excess:0,eBase:0,eSave:0,peak:0};});
-  var tk=0,tg=0,ts=0,te=0,eb=0,es=0;
+  var B=monthly.map(function(){return{kwh:0,gen:0,self:0,cover:0,excess:0,eBase:0,eSave:0,peak:0};});
+  var tk=0,tg=0,ts=0,tc=0,te=0,eb=0,es=0;
   for(var i=0;i<DAYS.length;i++){
     var d=DAYS[i],b=B[d.bi],gday=annual0*DIST[d.m-1]/d.dim;
     var shape=hourlyGenShape(d,mode);
     for(var h=0;h<24;h++){
       var L=d.h[h],g=gday*shape[h],r=d.r[h];
-      var s=(mode==='monthly')?g:(L<g?L:g);
-      b.kwh+=L; b.gen+=g; b.self+=s; b.excess+=g-s; b.eBase+=r*L; b.eSave+=r*s;
+      var s=(mode==='monthly'||L>g*(1-TRANS_LOSS))?g:L/(1-TRANS_LOSS);
+      var c=s*(1-TRANS_LOSS);
+      b.kwh+=L; b.gen+=g; b.self+=s; b.cover+=c; b.excess+=g-s; b.eBase+=r*L; b.eSave+=r*c;
       if(s>b.peak) b.peak=s;
     }
   }
-  B.forEach(function(b){tk+=b.kwh;tg+=b.gen;ts+=b.self;te+=b.excess;eb+=b.eBase;es+=b.eSave;});
-  return {B:B,kwh:tk,gen:tg,self:ts,excess:te,eBase:eb,eSave:es};
+  B.forEach(function(b){tk+=b.kwh;tg+=b.gen;ts+=b.self;tc+=b.cover;te+=b.excess;eb+=b.eBase;es+=b.eSave;});
+  return {B:B,kwh:tk,gen:tg,self:ts,cover:tc,excess:te,eBase:eb,eSave:es};
 }
 
 function updateEffMonthly(){
@@ -1128,7 +1140,7 @@ function getMonthHourlyPattern(m,genOverride){
     for(var h=0;h<24;h++){
       var L=d.h[h],g=gday*shape[h];
       kw[h]+=L; gn[h]+=g;
-      if(mode!=='monthly') ex[h]+=Math.max(0,g-L); /* 균등정산은 전량 구매라 초과 개념이 없음 — 항상 0 */
+      if(mode!=='monthly'&&L<=g*(1-TRANS_LOSS)) ex[h]+=g-L/(1-TRANS_LOSS); /* matchYear와 같은 공급량 산식. 균등정산은 전량 구매라 초과 개념이 없음 — 항상 0 */
     }
   });
   var n=ds.length;
@@ -1312,7 +1324,8 @@ function readFeeInputs(){
     ppa:parseFloat(document.getElementById('inp-ppa').value)||params.ppa,
     cap:capNow(),
     recWeight:isNaN(rw)?1.2:rw,
-    lossOn:document.getElementById('sel-loss').value==='on'
+    recBase:parseFloat(document.getElementById('inp-rec-base').value)||REC_BASE_DEFAULT,
+    adjTaxRatio:(function(v){return isNaN(v)?ADJ_TAXABLE_DEFAULT:v;})(parseFloat(document.getElementById('inp-adj-tax').value))
   };
 }
 
@@ -1320,17 +1333,19 @@ function readFeeInputs(){
 function computeYearlyFeeBreakdown(inp,kF,sF){
   var climF=inp.climate*kF, fuelF=inp.fuel*kF;
   var r=matchYear(sF,inp.cap);
-  var totalKwh=r.kwh,totalSelfConsume=r.self,remainKwh=Math.max(0,totalKwh-r.self),totalExcess=r.excess;
+  var totalKwh=r.kwh,totalSelfConsume=r.self,remainKwh=Math.max(0,totalKwh-r.cover),totalExcess=r.excess;
 
   /* 전력량요금: 시간대별 단가 × 시간별 사용량 (PPA 미도입) / 자가소비 차감 후 잔여 (회피단가 = eSave/self) */
   var kEnergy=r.eBase*kF, rEnergy=(r.eBase-r.eSave)*kF;
-  var avoidedUnit=r.self>0?r.eSave/r.self*kF:0;
+  var avoidedUnit=r.cover>0?r.eSave/r.cover*kF:0;
 
-  var recSettlement=0,lossCost=0;
+  /* 초과발전 REC — Settlement rec.js 와 같은 매매금액: (기준단가 − SMP) × 초과 kWh.
+     가중치는 REC 수량(=초과MWh×가중치)과 REC 단가만 바꾸고 매매금액에는 곱하지 않는다. 하한 없음.
+     (Settlement는 시간별 SMP·정수 REC 이월·용역수수료까지 반영 — 여기서는 월 SMP 근사) */
+  var recSettlement=0;
   r.B.forEach(function(b,i){
     var m=monthly[i],smp=getMonthSmp(m.month);
-    if(b.excess>0) recSettlement+=Math.max(0,inp.ppa-smp)*b.excess*inp.recWeight;
-    if(inp.lossOn) lossCost+=b.self*COMB_LOSS*smp;
+    if(b.excess>0) recSettlement+=(inp.recBase-smp)*b.excess;
   });
 
   /* 기본요금: 버킷(월)별 요금적용전력 × 단가 × (조사일수/월일수) */
@@ -1356,20 +1371,23 @@ function computeYearlyFeeBreakdown(inp,kF,sF){
 
   var p1=inp.ppa*totalSelfConsume, p2u=inp.netFeeUsage*totalSelfConsume;
   var p3=inp.feeTradeR*totalSelfConsume, p4=inp.feeAdjR*totalSelfConsume;
-  var pSub=p1+p2b+p2u+p3+p4+lossCost,p5=pSub*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
+  /* 부가세 — Settlement 가정산서 기준: 과세 항목(전력량·망이용·수수료·부가정산금 과세분·REC 대금)에만 10%.
+     부가정산금 비과세분·전력산업기반기금에는 부가세 없음. REC 부가세는 REC 대금과 함께 ④에 표시 */
+  var pSub=p1+p2b+p2u+p3+p4,p5=(p1+p2b+p2u+p3+p4*inp.adjTaxRatio)*0.10,p6=pSub*0.027,pTotal=pSub+p5+p6;
 
   var rBasic=kBasic,rClim=climF*remainKwh,rFuel=fuelF*remainKwh;
   var rSub=rBasic+rEnergy+rClim+rFuel;
   var rVat=Math.round(rSub*0.10/10)*10, rFund=Math.floor(rSub*0.027/10)*10, rTotal=rSub+rVat+rFund;
-  var totalCost=pTotal+rTotal+recSettlement;
+  var recVat=recSettlement*0.10;
+  var totalCost=pTotal+rTotal+recSettlement+recVat;
 
   return {
     totalKwh:totalKwh,totalSelfConsume:totalSelfConsume,remainKwh:remainKwh,totalExcess:totalExcess,
     avoidedUnit:avoidedUnit,
     kBasic:kBasic,kEnergy:kEnergy,kClim:kClim,kFuel:kFuel,kVat:kVat,kFund:kFund,kTotal:kTotal,
-    p1:p1,p2b:p2b,p2bGen:p2bGen,p2bDem:p2bDem,p2bDist:p2bDist,p2u:p2u,p3:p3,p4:p4,pLoss:lossCost,pSub:pSub,p5:p5,p6:p6,pTotal:pTotal,
+    p1:p1,p2b:p2b,p2bGen:p2bGen,p2bDem:p2bDem,p2bDist:p2bDist,p2u:p2u,p3:p3,p4:p4,pSub:pSub,p5:p5,p6:p6,pTotal:pTotal,
     rBasic:rBasic,rEnergy:rEnergy,rClim:rClim,rFuel:rFuel,rVat:rVat,rFund:rFund,rTotal:rTotal,
-    recSettlement:recSettlement,totalCost:totalCost,
+    recSettlement:recSettlement,recVat:recVat,totalCost:totalCost,
     savings:kTotal-totalCost,
     ppaSavings:(kTotal-rTotal)-pTotal
   };
@@ -1925,7 +1943,7 @@ function renderPpaStructure(){
 
   document.getElementById('ppa-structure').innerHTML=
     '<div class="fee-tbl-wrap"><table class="fee-tbl">'+body+'</table></div>'
-    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">※ 부가가치세 및 PPA 전력손실분은 단가에 포함되지 않습니다.</div>';
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px">※ 부가가치세는 단가에 포함되지 않습니다. 송전손실분(1.57%)은 공급량에 포함되어 청구됩니다(Settlement 정산과 같은 기준).</div>';
 }
 /* ── 기능 3: 요금 비교 테이블 ── */
 function renderFeeTable(){
@@ -1963,9 +1981,8 @@ function renderFeeTable(){
   body+='<tr><td style="padding-left:38px;color:var(--tx2)">소계</td><td style="color:var(--tx2)">'+W(b.p2b+b.p2u)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">③ 거래수수료 ('+inp.feeTradeR+'원/kWh)</td><td>'+W(b.p3)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">④ 부가정산금 ('+inp.feeAdjR+'원/kWh)</td><td>'+W(b.p4)+'</td></tr>';
-  if(inp.lossOn) body+='<tr><td style="padding-left:22px">⑤ 전력손실반영금액 <span style="color:var(--tx4);font-size:10px">(자가소비 × 3.52% × 월 SMP · 추정)</span></td><td>'+W(b.pLoss)+'</td></tr>';
   body+='<tr style="background:var(--bg3)"><td style="color:var(--tx4);font-size:10px;padding-left:22px">PPA 소계 (세전)</td><td style="color:var(--tx4)">'+W(b.pSub)+'</td></tr>';
-  body+='<tr><td style="padding-left:22px">⑥ 부가가치세 10%</td><td>'+W(b.p5)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">⑥ 부가가치세 10% <span style="color:var(--tx4);font-size:10px">(부가정산금은 과세분 '+(inp.adjTaxRatio*100).toFixed(2)+'%만)</span></td><td>'+W(b.p5)+'</td></tr>';
   body+='<tr><td style="padding-left:22px">⑦ 전력산업기반기금 2.7%</td><td>'+W(b.p6)+'</td></tr>';
   body+='<tr class="total-row"><td>PPA 합계</td><td>'+W(b.pTotal)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
@@ -1980,7 +1997,8 @@ function renderFeeTable(){
 
   body+='<tr class="section-row"><td colspan="2">④ 초과발전 REC 매입비용 (초과 '+fmt(b.totalExcess)+'kWh · 전기사용자 매입)</td></tr>';
   body+='<tr><td style="padding-left:22px">REC 수량 ('+fmt(b.totalExcess)+'kWh ÷ 1,000 × 가중치 '+inp.recWeight+')</td><td>'+(b.totalExcess/1000*inp.recWeight).toFixed(2)+' REC</td></tr>';
-  body+='<tr><td style="padding-left:22px">매입비용 (PPA단가 '+fmt(inp.ppa)+'원 − 월SMP, 0원 하한)</td><td>'+W(b.recSettlement)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">매입비용 ((기준단가 '+fmt(inp.recBase)+'원 − 월SMP) × 초과 kWh)</td><td>'+W(b.recSettlement)+'</td></tr>';
+  body+='<tr><td style="padding-left:22px">부가가치세 10%</td><td>'+W(b.recVat)+'</td></tr>';
   body+='<tr class="sep-row"><td colspan="2"></td></tr>';
 
   body+='<tr style="font-weight:600;background:var(--bg3)"><td>총 비용 합계 (PPA + 잔여 한전 + REC매입)</td><td>'+W(b.totalCost)+'</td></tr>';
@@ -1991,7 +2009,7 @@ function renderFeeTable(){
     '<div class="fee-tbl-wrap"><table class="fee-tbl">'
     +'<thead><tr><th style="text-align:left;width:65%">항목</th><th>연간 금액 (원)</th></tr></thead>'
     +body+'</table></div>'
-    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px;line-height:1.7">※ 재생에너지 전력 사용고객 요금은 현재 유예되어 기존 산업용 요금을 적용합니다. 기후환경요금·연료비조정요금은 요금표 PDF에 단가가 없어 입력값을 사용합니다. 초과발전 정산단가·REC 가중치, 전력손실반영금액은 확정 단가 확인 전 추정치입니다.</div>';
+    +'<div style="font-size:10px;color:var(--tx4);margin-top:6px;line-height:1.7">※ 재생에너지 전력 사용고객 요금은 현재 유예되어 기존 산업용 요금을 적용합니다. 기후환경요금·연료비조정요금은 요금표 PDF에 단가가 없어 입력값을 사용합니다. 초과발전 REC 매입비용은 월평균 SMP 기준 근사치입니다(실제 정산은 시간별 SMP).</div>';
 }
 /* ── 20년 시뮬레이션 ── */
 function runSim(){
